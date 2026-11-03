@@ -32,3 +32,6 @@ Thumbs.db
 .cache/
 .temp/
 *.local
+
+# server
+server/src/generated/
