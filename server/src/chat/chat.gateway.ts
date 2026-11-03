@@ -20,6 +20,10 @@ interface ChatMessage {
   sentAt: string; // ISO 8601, en UTC
 }
 
+interface JoinConversationPayload {
+  conversationId: string;
+}
+
 @WebSocketGateway()
 export class ChatGateway {
   @WebSocketServer()
@@ -42,5 +46,24 @@ export class ChatGateway {
 
     // Accusé de réception, reçu uniquement par l'émetteur
     return { status: 'ok', id: message.id };
+  }
+
+  @SubscribeMessage('conversation:join')
+  async handleJoinConversation(
+    @MessageBody() payload: JoinConversationPayload,
+    @ConnectedSocket() client: Socket,
+  ): Promise<{ status: 'ok'; conversationId: string }> {
+    const room = `conversation:${payload.conversationId}`;
+
+    await client.join(room);
+
+    const message = {
+      conversationId: payload.conversationId,
+      userId: client.id, // provisoire : sera l'id utilisateur issu du JWT
+      joinedAt: new Date().toISOString(),
+    };
+
+    client.to(room).emit('conversation:user-joined', message);
+    return { status: 'ok', conversationId: payload.conversationId };
   }
 }

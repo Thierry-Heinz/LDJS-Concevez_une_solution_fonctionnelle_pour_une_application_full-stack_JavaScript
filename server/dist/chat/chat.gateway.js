@@ -27,6 +27,17 @@ let ChatGateway = class ChatGateway {
         this.server.emit('message:new', message);
         return { status: 'ok', id: message.id };
     }
+    async handleJoinConversation(payload, client) {
+        const room = `conversation:${payload.conversationId}`;
+        await client.join(room);
+        const message = {
+            conversationId: payload.conversationId,
+            userId: client.id,
+            joinedAt: new Date().toISOString(),
+        };
+        client.to(room).emit('conversation:user-joined', message);
+        return { status: 'ok', conversationId: payload.conversationId };
+    }
 };
 exports.ChatGateway = ChatGateway;
 __decorate([
@@ -41,6 +52,14 @@ __decorate([
     __metadata("design:paramtypes", [Object, socket_io_1.Socket]),
     __metadata("design:returntype", Object)
 ], ChatGateway.prototype, "handleSendMessage", null);
+__decorate([
+    (0, websockets_1.SubscribeMessage)('conversation:join'),
+    __param(0, (0, websockets_1.MessageBody)()),
+    __param(1, (0, websockets_1.ConnectedSocket)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, socket_io_1.Socket]),
+    __metadata("design:returntype", Promise)
+], ChatGateway.prototype, "handleJoinConversation", null);
 exports.ChatGateway = ChatGateway = __decorate([
     (0, websockets_1.WebSocketGateway)()
 ], ChatGateway);
