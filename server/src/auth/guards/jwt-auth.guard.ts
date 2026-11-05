@@ -7,7 +7,6 @@ import {
 import { IS_PUBLIC_KEY } from '../decorators/public.decorators';
 import { Reflector } from '@nestjs/core';
 import { JwtService } from '@nestjs/jwt';
-import { Request } from 'express';
 import { AccessTokenPayload, AuthenticatedRequest } from '../auth.types';
 import { ConfigService } from '@nestjs/config';
 

@@ -14,6 +14,10 @@ export class AccountsService {
     return this.accountsRepository.findByEmail(email);
   }
 
+  findById(id: string) {
+    return this.accountsRepository.findById(id);
+  }
+
   async getProfile(id: string) {
     const profile = await this.accountsRepository.findProfileById(id);
     if (!profile) {

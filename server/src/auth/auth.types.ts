@@ -14,9 +14,20 @@ export type CreateRefreshTokenData = {
   sessionExpiresAt: Date;
 };
 
+export type RefreshTokenData = CreateRefreshTokenData & {
+  revokedAt: Date;
+};
+
 export type AccessTokenPayload = {
   sub: string; // l'id de l'utilisateur
   role: Role;
   iat: number; // date d'émission, ajoutée automatiquement (en secondes)
   exp: number; // date d'expiration, ajoutée automatiquement
+};
+
+export type RefreshTokenPayload = {
+  sub: string;
+  jti: string;
+  iat: number;
+  exp: number;
 };

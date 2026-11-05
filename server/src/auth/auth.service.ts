@@ -11,7 +11,7 @@ import { RefreshTokensRepository } from './refresh-tokens.repository';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { Role } from 'src/generated/prisma/enums';
-import { Request, Response } from 'express';
+import { RefreshTokenPayload } from './auth.types';
 
 @Injectable()
 export class AuthService implements OnModuleInit {
@@ -39,11 +39,6 @@ export class AuthService implements OnModuleInit {
     this.sessionAbsoluteTtlSeconds = Number(
       config.getOrThrow<string>('SESSION_ABSOLUTE_TTL_SECONDS'),
     );
-    console.log({
-      accessTtl: this.accessTtlSeconds,
-      refreshIdleTtl: this.refreshIdleTtlSeconds,
-      sessionTtl: this.sessionAbsoluteTtlSeconds,
-    });
   }
 
   async onModuleInit() {
@@ -74,6 +69,64 @@ export class AuthService implements OnModuleInit {
     );
     const tokens = await this.issueTokens(user, { familyId, sessionExpiresAt });
     return { user, ...tokens };
+  }
+
+  async refresh(refreshToken: string) {
+    const payload = await this.verifyRefreshToken(refreshToken);
+
+    const saved = await this.refreshTokensRepository.findById(payload.jti);
+    if (!saved || saved.userId !== payload.sub) {
+      throw new UnauthorizedException();
+    }
+
+    // Limite absolue de la session
+    if (saved.sessionExpiresAt.getTime() <= Date.now()) {
+      throw new UnauthorizedException();
+    }
+
+    // Le jeton présenté est bien celui enregistré
+    const valid = await argon2.verify(saved.tokenHash, refreshToken);
+    if (!valid) {
+      throw new UnauthorizedException();
+    }
+
+    // Le compte existe toujours (et on récupère son rôle)
+    const user = await this.accountsService.findById(saved.userId);
+    if (!user) {
+      await this.closeSession(saved.familyId);
+      throw new UnauthorizedException();
+    }
+
+    const { count } = await this.refreshTokensRepository.revokeIfActive(
+      saved.id,
+    );
+    if (count === 0) {
+      await this.closeSession(saved.familyId);
+      throw new UnauthorizedException();
+    }
+
+    const tokens = await this.issueTokens(user, {
+      familyId: saved.familyId, // la session continue
+      sessionExpiresAt: saved.sessionExpiresAt, // avec la même limite absolue
+    });
+
+    return { user, ...tokens };
+  }
+
+  private async verifyRefreshToken(
+    token: string,
+  ): Promise<RefreshTokenPayload> {
+    try {
+      return await this.jwtService.verifyAsync<RefreshTokenPayload>(token, {
+        secret: this.refreshSecret,
+      });
+    } catch {
+      throw new UnauthorizedException();
+    }
+  }
+
+  private async closeSession(familyId: string) {
+    await this.refreshTokensRepository.revokeFamily(familyId);
   }
 
   private async validateCredentials(email: string, password: string) {

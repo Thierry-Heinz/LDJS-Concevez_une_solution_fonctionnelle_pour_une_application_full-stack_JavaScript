@@ -11,7 +11,7 @@ import {
 import { RegisterDto } from './dto/register.dto';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
-import type { Response } from 'express';
+import type { Request, Response } from 'express';
 import { Public } from './decorators/public.decorators';
 import type { AuthenticatedRequest } from './auth.types';
 import { AccountsService } from 'src/accounts/accounts.service';
@@ -20,7 +20,7 @@ import { AccountsService } from 'src/accounts/accounts.service';
 export class AuthController {
   constructor(
     private readonly authService: AuthService,
-    private readonly accountService: AccountsService,
+    private readonly accountsService: AccountsService,
   ) {}
 
   @Public()
@@ -41,9 +41,30 @@ export class AuthController {
     return user;
   }
 
+  @Public()
+  @HttpCode(200)
+  @Post('refresh')
+  async refresh(
+    @Req() request: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    try {
+      const refreshToken: unknown = request.cookies?.refresh_token;
+      if (typeof refreshToken !== 'string') {
+        throw new UnauthorizedException();
+      }
+      const { user, ...tokens } = await this.authService.refresh(refreshToken);
+      this.setAuthCookies(res, tokens);
+      return user;
+    } catch (error) {
+      this.clearAuthCookies(res);
+      throw error;
+    }
+  }
+
   @Get('me')
   async me(@Req() request: AuthenticatedRequest) {
-    const user = await this.accountService.getProfile(request.user.id);
+    const user = await this.accountsService.getProfile(request.user.id);
     if (!user) {
       throw new UnauthorizedException();
     }
@@ -75,5 +96,10 @@ export class AuthController {
       path: '/api/auth/refresh',
       expires: tokens.refreshExpiresAt,
     });
+  }
+
+  private clearAuthCookies(res: Response) {
+    res.clearCookie('access_token');
+    res.clearCookie('refresh_token', { path: '/api/auth/refresh' });
   }
 }

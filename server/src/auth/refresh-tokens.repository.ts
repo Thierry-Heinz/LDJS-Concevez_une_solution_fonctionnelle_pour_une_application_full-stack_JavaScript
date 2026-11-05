@@ -9,4 +9,38 @@ export class RefreshTokensRepository {
   async create(data: CreateRefreshTokenData) {
     await this.prisma.refreshToken.create({ data });
   }
+
+  async findById(jti: string) {
+    return await this.prisma.refreshToken.findUnique({
+      where: { id: jti },
+      select: {
+        id: true,
+        revokedAt: true,
+        expiresAt: true,
+        familyId: true,
+        sessionExpiresAt: true,
+        userId: true,
+        tokenHash: true,
+      },
+    });
+  }
+
+  async revokeFamily(familyId: string) {
+    await this.prisma.refreshToken.updateMany({
+      where: {
+        familyId,
+        revokedAt: null,
+      },
+      data: {
+        revokedAt: new Date(),
+      },
+    });
+  }
+
+  revokeIfActive(id: string) {
+    return this.prisma.refreshToken.updateMany({
+      where: { id, revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
+  }
 }

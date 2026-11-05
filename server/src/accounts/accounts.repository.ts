@@ -35,8 +35,20 @@ export class AccountsRepository {
     });
   }
 
-  async findProfileById(id: string) {
+  async findById(id: string) {
     return this.prisma.user.findUnique({
+      where: {
+        id,
+      },
+      select: {
+        id: true,
+        role: true,
+      },
+    });
+  }
+
+  async findProfileById(id: string) {
+    return await this.prisma.user.findUnique({
       where: { id },
       select: {
         id: true,
