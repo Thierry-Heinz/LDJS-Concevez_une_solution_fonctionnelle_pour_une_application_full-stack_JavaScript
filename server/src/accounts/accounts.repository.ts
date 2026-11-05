@@ -23,4 +23,23 @@ export class AccountsRepository {
       },
     });
   }
+
+  async findByEmail(email: string) {
+    return this.prisma.user.findUnique({
+      where: { email },
+      select: {
+        id: true,
+        email: true,
+        role: true,
+      },
+    });
+  }
+
+  async getPasswordHash(id: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id },
+      select: { passwordHash: true },
+    });
+    return user?.passwordHash || null;
+  }
 }

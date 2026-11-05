@@ -9,4 +9,12 @@ export class AccountsService {
   createCustomer(data: CreateCustomerData) {
     return this.accountsRepository.createCustomer(data);
   }
+
+  findByEmail(email: string) {
+    return this.accountsRepository.findByEmail(email);
+  }
+
+  getPasswordHash(id: string) {
+    return this.accountsRepository.getPasswordHash(id);
+  }
 }
