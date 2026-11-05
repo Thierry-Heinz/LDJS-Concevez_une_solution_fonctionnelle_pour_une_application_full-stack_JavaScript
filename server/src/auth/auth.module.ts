@@ -4,10 +4,20 @@ import { AuthController } from './auth.controller';
 import { AccountsModule } from 'src/accounts/accounts.module';
 import { JwtModule } from '@nestjs/jwt';
 import { RefreshTokensRepository } from './refresh-tokens.repository';
+import { APP_GUARD } from '@nestjs/core';
+import { JwtAuthGuard } from './guards/jwt-auth.guard';
+import { AccountsService } from 'src/accounts/accounts.service';
+import { AccountsRepository } from 'src/accounts/accounts.repository';
 
 @Module({
   imports: [AccountsModule, JwtModule.register({})],
   controllers: [AuthController],
-  providers: [AuthService, RefreshTokensRepository],
+  providers: [
+    { provide: APP_GUARD, useClass: JwtAuthGuard },
+    AuthService,
+    AccountsService,
+    AccountsRepository,
+    RefreshTokensRepository,
+  ],
 })
 export class AuthModule {}

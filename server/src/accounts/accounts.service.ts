@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { AccountsRepository } from './accounts.repository';
-import { CreateCustomerData } from './accounts.types';
+import { CreateCustomerData, UserProfile } from './accounts.types';
 
 @Injectable()
 export class AccountsService {
@@ -12,6 +12,21 @@ export class AccountsService {
 
   findByEmail(email: string) {
     return this.accountsRepository.findByEmail(email);
+  }
+
+  async getProfile(id: string) {
+    const profile = await this.accountsRepository.findProfileById(id);
+    if (!profile) {
+      return null;
+    }
+    const customerData: UserProfile = {
+      id: profile.id,
+      email: profile.email,
+      role: profile.role,
+      firstName: profile.customer?.firstName || null,
+      lastName: profile.customer?.lastName || null,
+    };
+    return customerData;
   }
 
   getPasswordHash(id: string) {

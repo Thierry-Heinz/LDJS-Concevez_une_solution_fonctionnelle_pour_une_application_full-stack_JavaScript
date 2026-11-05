@@ -35,6 +35,23 @@ export class AccountsRepository {
     });
   }
 
+  async findProfileById(id: string) {
+    return this.prisma.user.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        email: true,
+        role: true,
+        customer: {
+          select: {
+            firstName: true,
+            lastName: true,
+          },
+        },
+      },
+    });
+  }
+
   async getPasswordHash(id: string) {
     const user = await this.prisma.user.findUnique({
       where: { id },

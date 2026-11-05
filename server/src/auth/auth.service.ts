@@ -11,6 +11,7 @@ import { RefreshTokensRepository } from './refresh-tokens.repository';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { Role } from 'src/generated/prisma/enums';
+import { Request, Response } from 'express';
 
 @Injectable()
 export class AuthService implements OnModuleInit {
