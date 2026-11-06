@@ -20,6 +20,29 @@ enum Role {
   @@map("role")
 }
 
+enum ConversationOrigin {
+  GENERAL
+  AGENCY
+
+  @@map("conversationOrigin")
+}
+
+enum ConversationStatus {
+  OPEN
+  CLOSED
+
+  @@map("conversationStatus")
+}
+
+enum SenderType {
+  GUEST
+  CUSTOMER
+  AGENCY
+  CENTRAL
+
+  @@map("senderType")
+}
+
 model User {
   id           String    @id @default(uuid()) @db.Uuid
   email        String    @unique
@@ -31,19 +54,22 @@ model User {
 
   refreshTokens RefreshToken[] // 0 à n jetons
 
+  messages Message[]
+
   @@map("users")
 }
 
 model Customer {
-  id               String   @id @db.Uuid
-  user             User     @relation(fields: [id], references: [id], onDelete: Cascade)
-  firstName        String   @map("first_name")
-  lastName         String   @map("last_name")
-  birthDate        DateTime @map("birth_date") @db.Date
+  id               String         @id @db.Uuid
+  user             User           @relation(fields: [id], references: [id], onDelete: Cascade)
+  firstName        String         @map("first_name")
+  lastName         String         @map("last_name")
+  birthDate        DateTime       @map("birth_date") @db.Date
   address          String
-  stripeCustomerId String?  @unique @map("stripe_customer_id")
-  languageCode     String   @default("fr") @map("language_code")
-  language         Language @relation(fields: [languageCode], references: [code])
+  stripeCustomerId String?        @unique @map("stripe_customer_id")
+  languageCode     String         @default("fr") @map("language_code")
+  language         Language       @relation(fields: [languageCode], references: [code])
+  conversations    Conversation[]
 
   @@map("customers")
 }
@@ -65,9 +91,52 @@ model RefreshToken {
   createdAt        DateTime  @default(now()) @map("created_at")
   revokedAt        DateTime? @map("revoked_at")
   familyId         String    @map("family_id") @db.Uuid
-  sessionExpiresAt DateTime  @map("session_expired_at")
+  sessionExpiresAt DateTime  @map("session_expires_at")
 
   @@index([userId])
   @@index([familyId])
   @@map("refresh_tokens")
+}
+
+model Agency {
+  id            String         @id @db.Uuid
+  name          String
+  conversations Conversation[]
+  messages      Message[]
+
+  @@map("agency")
+}
+
+model Conversation {
+  id         String             @id @default(uuid()) @db.Uuid
+  customerId String?            @map("customer_id") @db.Uuid
+  customer   Customer?          @relation(fields: [customerId], references: [id])
+  guestId    String?            @db.Uuid
+  origin     ConversationOrigin @default(GENERAL)
+  agencyId   String?            @map("agency_id") @db.Uuid
+  agency     Agency?            @relation(fields: [agencyId], references: [id])
+  bookingId  String?            @db.Uuid //pas de table booking dans PoC
+  status     ConversationStatus @default(OPEN)
+  openedAt   DateTime           @default(now()) @map("opened_at")
+  closedAt   DateTime?          @map("closed_at")
+  mesages    Message[]
+
+  @@map("conversations")
+}
+
+model Message {
+  id String @id @default(uuid()) @db.Uuid
+
+  conversationId String       @map("conversation_id") @db.Uuid
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  senderType     SenderType
+  senderUserId   String?      @map("sender_user_id") @db.Uuid
+  senderUser     User?        @relation(fields: [senderUserId], references: [id])
+  senderAgencyId String?      @map("sender_agency_id") @db.Uuid
+  senderAgency   Agency?      @relation(fields: [senderAgencyId], references: [id])
+  content        String
+  sentAt         DateTime     @default(now())
+
+  @@index([conversationId, sentAt])
+  @@map("messages")
 }
