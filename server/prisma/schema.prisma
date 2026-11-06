@@ -1,0 +1,73 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "cjs"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  CUSTOMER
+  ADVISOR
+
+  @@map("role")
+}
+
+model User {
+  id           String    @id @default(uuid()) @db.Uuid
+  email        String    @unique
+  passwordHash String    @map("password_hash")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+  role         Role      @default(CUSTOMER)
+  customer     Customer? // 0 ou 1 profil client
+
+  refreshTokens RefreshToken[] // 0 à n jetons
+
+  @@map("users")
+}
+
+model Customer {
+  id               String   @id @db.Uuid
+  user             User     @relation(fields: [id], references: [id], onDelete: Cascade)
+  firstName        String   @map("first_name")
+  lastName         String   @map("last_name")
+  birthDate        DateTime @map("birth_date") @db.Date
+  address          String
+  stripeCustomerId String?  @unique @map("stripe_customer_id")
+  languageCode     String   @default("fr") @map("language_code")
+  language         Language @relation(fields: [languageCode], references: [code])
+
+  @@map("customers")
+}
+
+model Language {
+  code      String     @id
+  name      String
+  customers Customer[]
+
+  @@map("languages")
+}
+
+model RefreshToken {
+  id               String    @id @default(uuid()) @db.Uuid
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId           String    @map("user_id") @db.Uuid
+  tokenHash        String    @map("token_hash")
+  expiresAt        DateTime  @map("expires_at")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  revokedAt        DateTime? @map("revoked_at")
+  familyId         String    @map("family_id") @db.Uuid
+  sessionExpiresAt DateTime  @map("session_expired_at")
+
+  @@index([userId])
+  @@index([familyId])
+  @@map("refresh_tokens")
+}
