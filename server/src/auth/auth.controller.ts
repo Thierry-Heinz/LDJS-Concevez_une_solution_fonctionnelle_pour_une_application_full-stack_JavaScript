@@ -23,6 +23,15 @@ export class AuthController {
     private readonly accountsService: AccountsService,
   ) {}
 
+  @Get('me')
+  async me(@Req() request: AuthenticatedRequest) {
+    const user = await this.accountsService.getProfile(request.user.id);
+    if (!user) {
+      throw new UnauthorizedException();
+    }
+    return user;
+  }
+
   @Public()
   @Post('register')
   register(@Body() dto: RegisterDto) {
@@ -62,13 +71,18 @@ export class AuthController {
     }
   }
 
-  @Get('me')
-  async me(@Req() request: AuthenticatedRequest) {
-    const user = await this.accountsService.getProfile(request.user.id);
-    if (!user) {
-      throw new UnauthorizedException();
+  @Public()
+  @Post('logout')
+  @HttpCode(204)
+  async logout(
+    @Req() request: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const accessToken: unknown = request.cookies?.access_token;
+    if (typeof accessToken === 'string') {
+      await this.authService.logout(accessToken);
     }
-    return user;
+    this.clearAuthCookies(res);
   }
 
   private setAuthCookies(

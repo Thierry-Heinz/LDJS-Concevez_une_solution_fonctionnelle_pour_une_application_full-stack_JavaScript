@@ -26,6 +26,9 @@ export class RefreshTokensRepository {
   }
 
   async revokeFamily(familyId: string) {
+    if (!familyId) {
+      throw new Error('revokeFamily appelé sans familyId');
+    }
     await this.prisma.refreshToken.updateMany({
       where: {
         familyId,

@@ -11,7 +11,7 @@ import { RefreshTokensRepository } from './refresh-tokens.repository';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { Role } from 'src/generated/prisma/enums';
-import { RefreshTokenPayload } from './auth.types';
+import { AccessTokenPayload, RefreshTokenPayload } from './auth.types';
 
 @Injectable()
 export class AuthService implements OnModuleInit {
@@ -69,6 +69,25 @@ export class AuthService implements OnModuleInit {
     );
     const tokens = await this.issueTokens(user, { familyId, sessionExpiresAt });
     return { user, ...tokens };
+  }
+
+  async logout(accessToken: string) {
+    let payload: AccessTokenPayload;
+    try {
+      payload = await this.jwtService.verifyAsync<AccessTokenPayload>(
+        accessToken,
+        {
+          secret: this.accessSecret,
+          ignoreExpiration: true, // jeton expiré accepté, signature toujours vérifiée
+        },
+      );
+    } catch {
+      return;
+    }
+    if (!payload.sid) {
+      return;
+    }
+    await this.refreshTokensRepository.revokeFamily(payload.sid);
   }
 
   async refresh(refreshToken: string) {
@@ -163,6 +182,7 @@ export class AuthService implements OnModuleInit {
       {
         sub: user.id,
         role: user.role,
+        sid: session.familyId,
       },
       {
         secret: this.accessSecret,
