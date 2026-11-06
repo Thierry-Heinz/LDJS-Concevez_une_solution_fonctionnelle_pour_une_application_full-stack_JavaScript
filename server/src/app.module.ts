@@ -7,6 +7,7 @@ import { ConfigModule } from '@nestjs/config';
 import { AuthModule } from './auth/auth.module';
 import { APP_PIPE } from '@nestjs/core';
 import { ZodValidationPipe } from 'nestjs-zod';
+import { AgenciesModule } from './agencies/agencies.module';
 
 @Module({
   imports: [
@@ -14,6 +15,7 @@ import { ZodValidationPipe } from 'nestjs-zod';
     PrismaModule,
     AuthModule,
     ChatModule,
+    AgenciesModule,
   ],
   controllers: [AppController],
   providers: [{ provide: APP_PIPE, useClass: ZodValidationPipe }, AppService],
