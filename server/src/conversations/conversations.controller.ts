@@ -3,6 +3,8 @@ import {
   Controller,
   Get,
   NotFoundException,
+  Param,
+  ParseUUIDPipe,
   Post,
   Req,
 } from '@nestjs/common';
@@ -29,6 +31,23 @@ export class ConversationsController {
       throw new NotFoundException();
     }
     return conversation;
+  }
+
+  @Public()
+  @Get('open')
+  async open(@Req() request: Request) {
+    const identity = await this.authService.resolveIdentity(request.cookies);
+    return this.conversationsService.listOpenForAgent(identity);
+  }
+
+  @Public()
+  @Get(':id/messages')
+  async messages(
+    @Req() request: Request,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    const identity = await this.authService.resolveIdentity(request.cookies);
+    return this.conversationsService.getMessages(identity, id);
   }
 
   @Public()
