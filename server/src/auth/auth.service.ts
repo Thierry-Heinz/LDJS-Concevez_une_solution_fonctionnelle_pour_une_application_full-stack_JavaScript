@@ -11,7 +11,11 @@ import { RefreshTokensRepository } from './refresh-tokens.repository';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { Role } from '../generated/prisma/enums';
-import { AccessTokenPayload, RefreshTokenPayload } from './auth.types';
+import {
+  AccessTokenPayload,
+  Identity,
+  RefreshTokenPayload,
+} from './auth.types';
 
 @Injectable()
 export class AuthService implements OnModuleInit {
@@ -169,6 +173,42 @@ export class AuthService implements OnModuleInit {
     } catch {
       return null;
     }
+  }
+
+  async resolveIdentity(cookies: Record<string, unknown>): Promise<Identity> {
+    const accessToken = cookies?.access_token;
+    if (typeof accessToken === 'string') {
+      try {
+        const accessPayload =
+          await this.jwtService.verifyAsync<AccessTokenPayload>(accessToken, {
+            secret: this.accessSecret,
+          });
+        return {
+          kind: 'user',
+          id: accessPayload.sub,
+          role: accessPayload.role,
+          agencyId: accessPayload.agencyId ?? null,
+        };
+      } catch {
+        throw new UnauthorizedException();
+      }
+    }
+
+    const guestToken = cookies?.guest_token;
+    if (typeof guestToken === 'string') {
+      const guestId = await this.verifyGuestToken(guestToken);
+      if (!guestId) {
+        throw new UnauthorizedException();
+      }
+      return {
+        kind: 'guest',
+        guestId: guestId,
+      };
+    }
+
+    return {
+      kind: 'anonymous',
+    };
   }
 
   private async verifyRefreshToken(

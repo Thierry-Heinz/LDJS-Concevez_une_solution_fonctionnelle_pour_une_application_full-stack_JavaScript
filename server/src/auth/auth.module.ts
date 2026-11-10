@@ -19,5 +19,6 @@ import { AccountsRepository } from 'src/accounts/accounts.repository';
     AccountsRepository,
     RefreshTokensRepository,
   ],
+  exports: [AuthService],
 })
 export class AuthModule {}
