@@ -15,7 +15,7 @@ datasource db {
 
 enum Role {
   CUSTOMER
-  ADVISOR
+  AGENT
 
   @@map("role")
 }
@@ -24,23 +24,29 @@ enum ConversationOrigin {
   GENERAL
   AGENCY
 
-  @@map("conversationOrigin")
+  @@map("conversation_origin")
 }
 
 enum ConversationStatus {
   OPEN
   CLOSED
 
-  @@map("conversationStatus")
+  @@map("conversation_status")
 }
 
 enum SenderType {
   GUEST
   CUSTOMER
-  AGENCY
-  CENTRAL
+  AGENT
 
-  @@map("senderType")
+  @@map("sender_type")
+}
+
+enum AgencyType {
+  CENTRAL
+  BRANCH
+
+  @@map("agency_type")
 }
 
 model User {
@@ -51,10 +57,13 @@ model User {
   updatedAt    DateTime  @updatedAt @map("updated_at")
   role         Role      @default(CUSTOMER)
   customer     Customer? // 0 ou 1 profil client
+  agencyId     String?   @map("agency_id") @db.Uuid
 
   refreshTokens RefreshToken[] // 0 à n jetons
 
   messages Message[]
+
+  agency Agency? @relation(fields: [agencyId], references: [id])
 
   @@map("users")
 }
@@ -103,23 +112,25 @@ model Agency {
   name          String
   conversations Conversation[]
   messages      Message[]
+  agencyType    AgencyType     @default(BRANCH) @map("agency_type")
+  users         User[]
 
-  @@map("agency")
+  @@map("agencies")
 }
 
 model Conversation {
   id         String             @id @default(uuid()) @db.Uuid
   customerId String?            @map("customer_id") @db.Uuid
   customer   Customer?          @relation(fields: [customerId], references: [id])
-  guestId    String?            @db.Uuid
+  guestId    String?            @map("guest_id") @db.Uuid
   origin     ConversationOrigin @default(GENERAL)
-  agencyId   String?            @map("agency_id") @db.Uuid
-  agency     Agency?            @relation(fields: [agencyId], references: [id])
-  bookingId  String?            @db.Uuid //pas de table booking dans PoC
+  agencyId   String             @map("agency_id") @db.Uuid
+  agency     Agency             @relation(fields: [agencyId], references: [id])
+  bookingId  String?            @map("booking_id") @db.Uuid //pas de table booking dans PoC
   status     ConversationStatus @default(OPEN)
   openedAt   DateTime           @default(now()) @map("opened_at")
   closedAt   DateTime?          @map("closed_at")
-  mesages    Message[]
+  messages   Message[]
 
   @@map("conversations")
 }
@@ -129,13 +140,13 @@ model Message {
 
   conversationId String       @map("conversation_id") @db.Uuid
   conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  senderType     SenderType
+  senderType     SenderType   @map("sender_type")
   senderUserId   String?      @map("sender_user_id") @db.Uuid
   senderUser     User?        @relation(fields: [senderUserId], references: [id])
   senderAgencyId String?      @map("sender_agency_id") @db.Uuid
   senderAgency   Agency?      @relation(fields: [senderAgencyId], references: [id])
   content        String
-  sentAt         DateTime     @default(now())
+  sentAt         DateTime     @default(now()) @map("sent_at")
 
   @@index([conversationId, sentAt])
   @@map("messages")
