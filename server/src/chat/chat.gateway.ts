@@ -1,33 +1,37 @@
 import {
   ConnectedSocket,
   MessageBody,
+  OnGatewayInit,
   SubscribeMessage,
   WebSocketGateway,
   WebSocketServer,
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
+import type {
+  ChatMessage,
+  SendMessagePayload,
+  JoinConversationPayload,
+  ChatServer,
+  ChatSocket,
+} from './chat.types';
+import { AuthService } from 'src/auth/auth.service';
+import { ConversationsService } from 'src/conversations/conversations.service';
+import { createWsAuthMiddleware } from './ws-auth.middleware';
 
-// Forme des données envoyées par le client
-interface SendMessagePayload {
-  content: string;
-}
+@WebSocketGateway({
+  cors: { origin: 'http://localhost:5173', credentials: true },
+})
+export class ChatGateway implements OnGatewayInit {
+  @WebSocketServer() server!: ChatServer;
 
-// Forme du message diffusé par le serveur
-interface ChatMessage {
-  id: string;
-  authorId: string;
-  content: string;
-  sentAt: string; // ISO 8601, en UTC
-}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly conversationsService: ConversationsService,
+  ) {}
 
-interface JoinConversationPayload {
-  conversationId: string;
-}
-
-@WebSocketGateway()
-export class ChatGateway {
-  @WebSocketServer()
-  server!: Server;
+  afterInit(server: Server) {
+    server.use(createWsAuthMiddleware(this.authService));
+  }
 
   @SubscribeMessage('message:send')
   handleSendMessage(
@@ -51,7 +55,7 @@ export class ChatGateway {
   @SubscribeMessage('conversation:join')
   async handleJoinConversation(
     @MessageBody() payload: JoinConversationPayload,
-    @ConnectedSocket() client: Socket,
+    @ConnectedSocket() client: ChatSocket,
   ): Promise<{ status: 'ok'; conversationId: string }> {
     const room = `conversation:${payload.conversationId}`;
 
