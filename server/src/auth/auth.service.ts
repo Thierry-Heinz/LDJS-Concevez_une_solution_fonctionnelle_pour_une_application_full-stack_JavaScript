@@ -10,7 +10,7 @@ import { LoginDto } from './dto/login.dto';
 import { RefreshTokensRepository } from './refresh-tokens.repository';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
-import { Role } from 'src/generated/prisma/enums';
+import { Role } from '../generated/prisma/enums';
 import { AccessTokenPayload, RefreshTokenPayload } from './auth.types';
 
 @Injectable()
@@ -163,15 +163,11 @@ export class AuthService implements OnModuleInit {
     if (!valid) {
       return null;
     }
-    return {
-      id: user.id,
-      email: user.email,
-      role: user.role,
-    };
+    return user;
   }
 
   private async issueTokens(
-    user: { id: string; role: Role },
+    user: { id: string; role: Role; agencyId: string | null },
     session: { familyId: string; sessionExpiresAt: Date },
   ) {
     const now = Date.now();
@@ -183,6 +179,7 @@ export class AuthService implements OnModuleInit {
         sub: user.id,
         role: user.role,
         sid: session.familyId,
+        agencyId: user.agencyId,
       },
       {
         secret: this.accessSecret,
