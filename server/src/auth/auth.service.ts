@@ -19,8 +19,10 @@ export class AuthService implements OnModuleInit {
   private readonly accessSecret: string;
   private readonly accessTtlSeconds: number;
   private readonly refreshSecret: string;
+  private readonly guestSecret: string;
   private readonly refreshIdleTtlSeconds: number;
   private readonly sessionAbsoluteTtlSeconds: number;
+  private readonly guestTtlSeconds: number;
 
   constructor(
     private readonly accountsService: AccountsService,
@@ -33,11 +35,15 @@ export class AuthService implements OnModuleInit {
       config.getOrThrow<string>('ACCESS_TOKEN_TTL_SECONDS'),
     );
     this.refreshSecret = config.getOrThrow<string>('JWT_REFRESH_SECRET');
+    this.guestSecret = config.getOrThrow<string>('JWT_GUEST_SECRET');
     this.refreshIdleTtlSeconds = Number(
       config.getOrThrow<string>('REFRESH_TOKEN_IDLE_TTL_SECONDS'),
     );
     this.sessionAbsoluteTtlSeconds = Number(
       config.getOrThrow<string>('SESSION_ABSOLUTE_TTL_SECONDS'),
+    );
+    this.guestTtlSeconds = Number(
+      config.getOrThrow<string>('GUEST_TOKEN_TTL_SECONDS'),
     );
   }
 
@@ -130,6 +136,39 @@ export class AuthService implements OnModuleInit {
     });
 
     return { user, ...tokens };
+  }
+
+  async issueGuestToken() {
+    const now = Date.now();
+
+    const guestTokenExpiresAt = new Date(now + this.guestTtlSeconds * 1000);
+
+    const guestId = crypto.randomUUID();
+    const guestToken = await this.jwtService.signAsync(
+      {
+        sub: guestId,
+      },
+      {
+        secret: this.guestSecret,
+        expiresIn: this.guestTtlSeconds,
+      },
+    );
+
+    return { guestToken, guestTokenExpiresAt };
+  }
+
+  async verifyGuestToken(token: string): Promise<string | null> {
+    try {
+      const payload = await this.jwtService.verifyAsync<{ sub: string }>(
+        token,
+        {
+          secret: this.guestSecret,
+        },
+      );
+      return payload.sub;
+    } catch {
+      return null;
+    }
   }
 
   private async verifyRefreshToken(

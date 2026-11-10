@@ -33,6 +33,31 @@ export class AuthController {
   }
 
   @Public()
+  @Post('guest')
+  @HttpCode(204)
+  async guest(
+    @Req() request: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const existing: unknown = request.cookies?.guest_token;
+    if (typeof existing === 'string') {
+      const guestId = await this.authService.verifyGuestToken(existing);
+      if (guestId) {
+        return;
+      }
+    }
+    const { guestToken, guestTokenExpiresAt } =
+      await this.authService.issueGuestToken();
+    res.cookie('guest_token', guestToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+      expires: guestTokenExpiresAt,
+    });
+  }
+
+  @Public()
   @Post('register')
   register(@Body() dto: RegisterDto) {
     return this.authService.register(dto);
