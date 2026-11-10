@@ -22,6 +22,7 @@ export class AgenciesRepository {
       select: {
         id: true,
         name: true,
+        agencyType: true,
       },
     });
   }

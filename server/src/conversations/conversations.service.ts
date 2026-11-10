@@ -8,14 +8,15 @@ import {
 } from '@nestjs/common';
 import { AgenciesService } from '../agencies/agencies.service';
 import { ConversationsRepository } from './conversations.repository';
-import { Identity } from '../auth/auth.types';
+import type { Identity } from '../auth/auth.types';
 import {
+  AgencyType,
   ConversationOrigin,
   ConversationStatus,
   Role,
   SenderType,
 } from '../generated/prisma/enums';
-import { ConversationOwner } from './conversations.types';
+import type { ConversationOwner } from './conversations.types';
 
 @Injectable()
 export class ConversationsService {
@@ -40,20 +41,7 @@ export class ConversationsService {
     identity: Identity,
     input: { origin: ConversationOrigin; agencyId?: string },
   ) {
-    let owner: ConversationOwner;
-    switch (identity.kind) {
-      case 'user':
-        if (identity.role !== Role.CUSTOMER) {
-          throw new ForbiddenException(); // un agent n'ouvre pas de conversation
-        }
-        owner = { customerId: identity.id };
-        break;
-      case 'guest':
-        owner = { guestId: identity.guestId };
-        break;
-      case 'anonymous':
-        throw new UnauthorizedException();
-    }
+    const owner = this.toOwner(identity);
 
     const existing = await this.conversationsRepository.findOpenByOwner(owner);
     if (existing) {
@@ -74,7 +62,7 @@ export class ConversationsService {
     return this.conversationsRepository.findMessages(conversationId);
   }
 
-  async postMessages(
+  async postMessage(
     identity: Identity,
     conversationId: string,
     content: string,
@@ -94,14 +82,18 @@ export class ConversationsService {
 
   async listOpenForAgent(identity: Identity) {
     if (
-      identity.kind === 'guest' ||
-      identity.kind === 'anonymous' ||
+      identity.kind !== 'user' ||
+      identity.role !== Role.AGENT ||
       identity.agencyId === null
     ) {
       throw new ForbiddenException();
     }
 
     return this.conversationsRepository.findOpenByAgencyId(identity.agencyId);
+  }
+
+  async findCurrent(identity: Identity) {
+    return this.conversationsRepository.findOpenByOwner(this.toOwner(identity));
   }
 
   private canAccess(
@@ -144,7 +136,7 @@ export class ConversationsService {
       throw new BadRequestException();
     }
     const agency = await this.agenciesService.findById(input.agencyId);
-    if (!agency) {
+    if (!agency || agency.agencyType !== AgencyType.BRANCH) {
       throw new NotFoundException();
     }
     return agency;
@@ -180,6 +172,20 @@ export class ConversationsService {
         throw new ForbiddenException();
       case 'anonymous':
         throw new ForbiddenException();
+    }
+  }
+
+  private toOwner(identity: Identity): ConversationOwner {
+    switch (identity.kind) {
+      case 'user':
+        if (identity.role !== Role.CUSTOMER) {
+          throw new ForbiddenException();
+        }
+        return { customerId: identity.id };
+      case 'guest':
+        return { guestId: identity.guestId };
+      case 'anonymous':
+        throw new UnauthorizedException();
     }
   }
 }
