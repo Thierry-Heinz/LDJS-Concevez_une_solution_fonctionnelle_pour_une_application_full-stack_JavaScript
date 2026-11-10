@@ -1,17 +1,23 @@
-import { Controller, Get, NotFoundException, Req } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  NotFoundException,
+  Post,
+  Req,
+} from '@nestjs/common';
 import { ConversationsService } from './conversations.service';
 import { AuthService } from 'src/auth/auth.service';
 
 import { Public } from '../auth/decorators/public.decorators';
-import { ConversationsRepository } from './conversations.repository';
 import type { Request } from 'express';
+import { StartConversationDto } from './dto/start-conversation.dto';
 
 @Controller('conversations')
 export class ConversationsController {
   constructor(
     private readonly conversationsService: ConversationsService,
     private readonly authService: AuthService,
-    private readonly conversationRepository: ConversationsRepository,
   ) {}
 
   @Public()
@@ -23,5 +29,12 @@ export class ConversationsController {
       throw new NotFoundException();
     }
     return conversation;
+  }
+
+  @Public()
+  @Post()
+  async start(@Req() request: Request, @Body() dto: StartConversationDto) {
+    const identity = await this.authService.resolveIdentity(request.cookies);
+    return this.conversationsService.startConversation(identity, dto);
   }
 }
