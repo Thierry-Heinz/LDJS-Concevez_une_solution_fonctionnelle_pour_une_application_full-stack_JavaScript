@@ -31,3 +31,8 @@ export type AccessTokenPayload = JwtBasePayload & {
 };
 
 export type RefreshTokenPayload = JwtBasePayload & { jti: string };
+
+export type Identity =
+  | { kind: 'user'; id: string; role: Role; agencyId: string | null }
+  | { kind: 'guest'; guestId: string }
+  | { kind: 'anonymous' };

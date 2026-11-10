@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from 'src/prisma/prisma.service';
+import { AgencyType } from '../generated/prisma/enums';
+import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
 export class AgenciesRepository {
@@ -22,6 +23,13 @@ export class AgenciesRepository {
         id: true,
         name: true,
       },
+    });
+  }
+
+  findCentral() {
+    return this.prisma.agency.findFirst({
+      where: { agencyType: AgencyType.CENTRAL },
+      select: { id: true, name: true, agencyType: true },
     });
   }
 }

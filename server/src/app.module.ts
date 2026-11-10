@@ -8,6 +8,7 @@ import { AuthModule } from './auth/auth.module';
 import { APP_PIPE } from '@nestjs/core';
 import { ZodValidationPipe } from 'nestjs-zod';
 import { AgenciesModule } from './agencies/agencies.module';
+import { ConversationsModule } from './conversations/conversations.module';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { AgenciesModule } from './agencies/agencies.module';
     AuthModule,
     ChatModule,
     AgenciesModule,
+    ConversationsModule,
   ],
   controllers: [AppController],
   providers: [{ provide: APP_PIPE, useClass: ZodValidationPipe }, AppService],

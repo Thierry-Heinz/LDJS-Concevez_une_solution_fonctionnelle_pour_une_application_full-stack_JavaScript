@@ -12,4 +12,8 @@ export class AgenciesService {
   findById(id: string) {
     return this.agenciesRepository.findById(id); // l'agence, ou null
   }
+
+  findCentral() {
+    return this.agenciesRepository.findCentral();
+  }
 }
