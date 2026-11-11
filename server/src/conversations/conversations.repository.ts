@@ -52,4 +52,14 @@ export class ConversationsRepository {
       include: includeName,
     });
   }
+
+  close(id: string) {
+    return this.prisma.conversation.update({
+      where: { id },
+      data: {
+        status: ConversationStatus.CLOSED,
+        closedAt: new Date(),
+      },
+    });
+  }
 }

@@ -13,6 +13,7 @@ import { createWsAuthMiddleware } from './ws-auth.middleware';
 import { ZodValidationPipe } from 'nestjs-zod';
 import { JoinConversationDto } from './dto/join-conversation.dto';
 import { SendMessageDto } from './dto/send-message.dto';
+import { Identity } from '../auth/auth.types';
 
 @WebSocketGateway({
   cors: { origin: 'http://localhost:5173', credentials: true },
@@ -73,6 +74,31 @@ export class ChatGateway implements OnGatewayInit {
 
     this.server.to(roomName).emit('message:new', message);
     return { status: 'ok', id: message.id };
+  }
+
+  @SubscribeMessage('conversation:close')
+  async handleCloseConversation(
+    @MessageBody(new ZodValidationPipe(JoinConversationDto))
+    payload: JoinConversationDto,
+    @ConnectedSocket() client: ChatSocket,
+  ) {
+    const identity: Identity = client.data.identity;
+
+    const roomName = this.roomName(payload.conversationId);
+    const conversation = await this.conversationsService.closeConversation(
+      identity,
+      payload.conversationId,
+    );
+
+    const closedBy = await this.conversationsService.getParticipant(identity);
+
+    this.server.to(roomName).emit('conversation:closed', {
+      conversationId: payload.conversationId,
+      closedAt: conversation.closedAt,
+      closedBy,
+    });
+    this.server.in(roomName).socketsLeave(roomName);
+    return { status: 'ok' as const };
   }
 
   private roomName(conversationId: string) {

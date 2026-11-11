@@ -59,6 +59,17 @@ export class ConversationsService {
     });
   }
 
+  async closeConversation(identity: Identity, conversationId: string) {
+    const conversation = await this.assertCanAccess(identity, conversationId);
+    if (conversation.status === ConversationStatus.CLOSED) {
+      throw new ConflictException({
+        code: 'CONVERSATION_CLOSED',
+        message: 'Conversation fermée',
+      });
+    }
+    return await this.conversationsRepository.close(conversationId);
+  }
+
   async getMessages(identity: Identity, conversationId: string) {
     await this.assertCanAccess(identity, conversationId);
     return this.conversationsRepository.findMessages(conversationId);
