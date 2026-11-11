@@ -14,8 +14,8 @@ import type {
   ChatServer,
   ChatSocket,
 } from './chat.types';
-import { AuthService } from 'src/auth/auth.service';
-import { ConversationsService } from 'src/conversations/conversations.service';
+import { AuthService } from '../auth/auth.service';
+import { ConversationsService } from '../conversations/conversations.service';
 import { createWsAuthMiddleware } from './ws-auth.middleware';
 
 @WebSocketGateway({

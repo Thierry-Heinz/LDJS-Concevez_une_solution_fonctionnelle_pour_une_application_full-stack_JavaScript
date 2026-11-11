@@ -1,4 +1,4 @@
-import { Role } from 'src/generated/prisma/enums';
+import { Role } from '../generated/prisma/enums';
 
 export type CreateCustomerData = {
   email: string;

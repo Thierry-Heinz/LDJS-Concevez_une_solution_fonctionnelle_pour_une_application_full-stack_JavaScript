@@ -14,7 +14,7 @@ import { LoginDto } from './dto/login.dto';
 import type { Request, Response } from 'express';
 import { Public } from './decorators/public.decorators';
 import type { AuthenticatedRequest } from './auth.types';
-import { AccountsService } from 'src/accounts/accounts.service';
+import { AccountsService } from '../accounts/accounts.service';
 
 @Controller('auth')
 export class AuthController {
