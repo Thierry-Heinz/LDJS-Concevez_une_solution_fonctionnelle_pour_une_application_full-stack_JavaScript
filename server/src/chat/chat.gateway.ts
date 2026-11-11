@@ -14,7 +14,10 @@ import { ZodValidationPipe } from 'nestjs-zod';
 import { JoinConversationDto } from './dto/join-conversation.dto';
 import { SendMessageDto } from './dto/send-message.dto';
 import { Identity } from '../auth/auth.types';
+import { WsExceptionsFilter } from './ws-exceptions.filter';
+import { UseFilters } from '@nestjs/common';
 
+@UseFilters(new WsExceptionsFilter())
 @WebSocketGateway({
   cors: { origin: 'http://localhost:5173', credentials: true },
 })
@@ -38,7 +41,7 @@ export class ChatGateway implements OnGatewayInit {
   ) {
     const identity = client.data.identity;
 
-    await this.conversationsService.assertCanAccess(
+    await this.conversationsService.assertCanJoin(
       identity,
       payload.conversationId,
     );

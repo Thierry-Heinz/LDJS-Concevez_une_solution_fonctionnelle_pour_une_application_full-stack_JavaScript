@@ -39,6 +39,12 @@ export class ConversationsService {
     return conversation;
   }
 
+  async assertCanJoin(identity: Identity, conversationId: string) {
+    const conversation = await this.assertCanAccess(identity, conversationId);
+    this.assertOpen(conversation.status);
+    return conversation;
+  }
+
   async startConversation(
     identity: Identity,
     input: { origin: ConversationOrigin; agencyId?: string },
@@ -230,6 +236,15 @@ export class ConversationsService {
         return { guestId: identity.guestId };
       case 'anonymous':
         throw new UnauthorizedException();
+    }
+  }
+
+  private assertOpen(conversationStatus: ConversationStatus) {
+    if (conversationStatus === ConversationStatus.CLOSED) {
+      throw new ConflictException({
+        code: 'CONVERSATION_CLOSED',
+        message: 'Conversation fermée',
+      });
     }
   }
 }
