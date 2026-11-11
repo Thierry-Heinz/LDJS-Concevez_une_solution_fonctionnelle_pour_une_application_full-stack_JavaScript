@@ -6,6 +6,12 @@ import type {
   CreateConversationData,
   CreateMessageData,
 } from './conversations.types';
+import type { Prisma } from '../generated/prisma/client';
+
+const includeName = {
+  senderAgency: { select: { name: true } },
+  senderUser: { select: { customer: { select: { firstName: true } } } },
+} satisfies Prisma.MessageInclude;
 
 @Injectable()
 export class ConversationsRepository {
@@ -36,10 +42,14 @@ export class ConversationsRepository {
     return this.prisma.message.findMany({
       where: { conversationId },
       orderBy: { sentAt: 'asc' },
+      include: includeName,
     });
   }
 
   createMessage(data: CreateMessageData) {
-    return this.prisma.message.create({ data });
+    return this.prisma.message.create({
+      data,
+      include: includeName,
+    });
   }
 }

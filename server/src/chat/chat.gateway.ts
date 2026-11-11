@@ -6,18 +6,13 @@ import {
   WebSocketGateway,
   WebSocketServer,
 } from '@nestjs/websockets';
-import { Socket } from 'socket.io';
-import type {
-  ChatMessage,
-  SendMessagePayload,
-  ChatServer,
-  ChatSocket,
-} from './chat.types';
+import type { ChatServer, ChatSocket } from './chat.types';
 import { AuthService } from '../auth/auth.service';
 import { ConversationsService } from '../conversations/conversations.service';
 import { createWsAuthMiddleware } from './ws-auth.middleware';
 import { ZodValidationPipe } from 'nestjs-zod';
 import { JoinConversationDto } from './dto/join-conversation.dto';
+import { SendMessageDto } from './dto/send-message.dto';
 
 @WebSocketGateway({
   cors: { origin: 'http://localhost:5173', credentials: true },
@@ -64,21 +59,19 @@ export class ChatGateway implements OnGatewayInit {
   }
 
   @SubscribeMessage('message:send')
-  handleSendMessage(
-    @MessageBody() payload: SendMessagePayload,
-    @ConnectedSocket() client: Socket,
-  ): { status: 'ok'; id: string } {
-    const message: ChatMessage = {
-      id: crypto.randomUUID(),
-      authorId: client.id, // provisoire : sera l'id utilisateur issu du JWT
-      content: payload.content,
-      sentAt: new Date().toISOString(),
-    };
+  async handleSendMessage(
+    @MessageBody(new ZodValidationPipe(SendMessageDto)) payload: SendMessageDto,
+    @ConnectedSocket() client: ChatSocket,
+  ) {
+    const identity = client.data.identity;
+    const roomName = this.roomName(payload.conversationId);
+    const message = await this.conversationsService.postMessage(
+      identity,
+      payload.conversationId,
+      payload.content,
+    );
 
-    // Diffusion à tous les clients connectés, émetteur compris
-    this.server.emit('message:new', message);
-
-    // Accusé de réception, reçu uniquement par l'émetteur
+    this.server.to(roomName).emit('message:new', message);
     return { status: 'ok', id: message.id };
   }
 
