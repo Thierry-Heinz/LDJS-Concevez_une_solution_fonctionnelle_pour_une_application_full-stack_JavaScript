@@ -6,17 +6,18 @@ import {
   WebSocketGateway,
   WebSocketServer,
 } from '@nestjs/websockets';
-import { Server, Socket } from 'socket.io';
+import { Socket } from 'socket.io';
 import type {
   ChatMessage,
   SendMessagePayload,
-  JoinConversationPayload,
   ChatServer,
   ChatSocket,
 } from './chat.types';
 import { AuthService } from '../auth/auth.service';
 import { ConversationsService } from '../conversations/conversations.service';
 import { createWsAuthMiddleware } from './ws-auth.middleware';
+import { ZodValidationPipe } from 'nestjs-zod';
+import { JoinConversationDto } from './dto/join-conversation.dto';
 
 @WebSocketGateway({
   cors: { origin: 'http://localhost:5173', credentials: true },
@@ -29,8 +30,37 @@ export class ChatGateway implements OnGatewayInit {
     private readonly conversationsService: ConversationsService,
   ) {}
 
-  afterInit(server: Server) {
+  afterInit(server: ChatServer) {
     server.use(createWsAuthMiddleware(this.authService));
+  }
+
+  @SubscribeMessage('conversation:join')
+  async handleJoinConversation(
+    @MessageBody(new ZodValidationPipe(JoinConversationDto))
+    payload: JoinConversationDto,
+    @ConnectedSocket() client: ChatSocket,
+  ) {
+    const identity = client.data.identity;
+
+    await this.conversationsService.assertCanAccess(
+      identity,
+      payload.conversationId,
+    );
+    const participant =
+      await this.conversationsService.getParticipant(identity);
+    const roomName = this.roomName(payload.conversationId);
+
+    await client.join(roomName);
+    const sockets = await this.server.in(roomName).fetchSockets();
+    console.log(
+      `[join] ${identity.kind} → ${roomName} (${sockets.length} socket(s) dans la room)`,
+    );
+    client.to(roomName).emit('conversation:participant-joined', {
+      conversationId: payload.conversationId,
+      participant,
+      joinedAt: new Date().toISOString(),
+    });
+    return { status: 'ok' as const };
   }
 
   @SubscribeMessage('message:send')
@@ -52,22 +82,7 @@ export class ChatGateway implements OnGatewayInit {
     return { status: 'ok', id: message.id };
   }
 
-  @SubscribeMessage('conversation:join')
-  async handleJoinConversation(
-    @MessageBody() payload: JoinConversationPayload,
-    @ConnectedSocket() client: ChatSocket,
-  ): Promise<{ status: 'ok'; conversationId: string }> {
-    const room = `conversation:${payload.conversationId}`;
-
-    await client.join(room);
-
-    const message = {
-      conversationId: payload.conversationId,
-      userId: client.id, // provisoire : sera l'id utilisateur issu du JWT
-      joinedAt: new Date().toISOString(),
-    };
-
-    client.to(room).emit('conversation:user-joined', message);
-    return { status: 'ok', conversationId: payload.conversationId };
+  private roomName(conversationId: string) {
+    return `conversation:${conversationId}`;
   }
 }

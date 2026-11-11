@@ -1,5 +1,6 @@
 import type { DefaultEventsMap, Server, Socket } from 'socket.io';
 import type { Identity } from '../auth/auth.types';
+
 // Forme des données envoyées par le client
 export interface SendMessagePayload {
   content: string;

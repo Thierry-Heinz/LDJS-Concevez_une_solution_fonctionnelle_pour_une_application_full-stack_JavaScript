@@ -16,3 +16,8 @@ export type CreateMessageData = {
 };
 
 export type ConversationOwner = { customerId: string } | { guestId: string };
+
+export interface Participant {
+  type: 'GUEST' | 'CUSTOMER' | 'AGENT';
+  displayName: string | null;
+}
