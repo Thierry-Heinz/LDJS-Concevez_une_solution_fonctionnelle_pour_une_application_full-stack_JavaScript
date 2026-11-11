@@ -6,16 +6,16 @@ import {
   WebSocketGateway,
   WebSocketServer,
 } from '@nestjs/websockets';
+import { UseFilters } from '@nestjs/common';
+import { ZodValidationPipe } from 'nestjs-zod';
 import type { ChatServer, ChatSocket } from './chat.types';
+import type { MessageSentAck, OkAck } from './chat.events';
 import { AuthService } from '../auth/auth.service';
 import { ConversationsService } from '../conversations/conversations.service';
 import { createWsAuthMiddleware } from './ws-auth.middleware';
-import { ZodValidationPipe } from 'nestjs-zod';
 import { JoinConversationDto } from './dto/join-conversation.dto';
 import { SendMessageDto } from './dto/send-message.dto';
-import { Identity } from '../auth/auth.types';
 import { WsExceptionsFilter } from './ws-exceptions.filter';
-import { UseFilters } from '@nestjs/common';
 
 @UseFilters(new WsExceptionsFilter())
 @WebSocketGateway({
@@ -38,7 +38,7 @@ export class ChatGateway implements OnGatewayInit {
     @MessageBody(new ZodValidationPipe(JoinConversationDto))
     payload: JoinConversationDto,
     @ConnectedSocket() client: ChatSocket,
-  ) {
+  ): Promise<OkAck> {
     const identity = client.data.identity;
 
     await this.conversationsService.assertCanJoin(
@@ -50,23 +50,20 @@ export class ChatGateway implements OnGatewayInit {
     const roomName = this.roomName(payload.conversationId);
 
     await client.join(roomName);
-    const sockets = await this.server.in(roomName).fetchSockets();
-    console.log(
-      `[join] ${identity.kind} → ${roomName} (${sockets.length} socket(s) dans la room)`,
-    );
+
     client.to(roomName).emit('conversation:participant-joined', {
       conversationId: payload.conversationId,
       participant,
       joinedAt: new Date().toISOString(),
     });
-    return { status: 'ok' as const };
+    return { status: 'ok' };
   }
 
   @SubscribeMessage('message:send')
   async handleSendMessage(
     @MessageBody(new ZodValidationPipe(SendMessageDto)) payload: SendMessageDto,
     @ConnectedSocket() client: ChatSocket,
-  ) {
+  ): Promise<MessageSentAck> {
     const identity = client.data.identity;
     const roomName = this.roomName(payload.conversationId);
     const message = await this.conversationsService.postMessage(
@@ -75,7 +72,10 @@ export class ChatGateway implements OnGatewayInit {
       payload.content,
     );
 
-    this.server.to(roomName).emit('message:new', message);
+    this.server.to(roomName).emit('message:new', {
+      ...message,
+      sentAt: message.sentAt.toISOString(),
+    });
     return { status: 'ok', id: message.id };
   }
 
@@ -84,24 +84,23 @@ export class ChatGateway implements OnGatewayInit {
     @MessageBody(new ZodValidationPipe(JoinConversationDto))
     payload: JoinConversationDto,
     @ConnectedSocket() client: ChatSocket,
-  ) {
-    const identity: Identity = client.data.identity;
+  ): Promise<OkAck> {
+    const identity = client.data.identity;
 
     const roomName = this.roomName(payload.conversationId);
     const conversation = await this.conversationsService.closeConversation(
       identity,
       payload.conversationId,
     );
-
     const closedBy = await this.conversationsService.getParticipant(identity);
 
     this.server.to(roomName).emit('conversation:closed', {
       conversationId: payload.conversationId,
-      closedAt: conversation.closedAt,
+      closedAt: (conversation.closedAt ?? new Date()).toISOString(),
       closedBy,
     });
     this.server.in(roomName).socketsLeave(roomName);
-    return { status: 'ok' as const };
+    return { status: 'ok' };
   }
 
   private roomName(conversationId: string) {
