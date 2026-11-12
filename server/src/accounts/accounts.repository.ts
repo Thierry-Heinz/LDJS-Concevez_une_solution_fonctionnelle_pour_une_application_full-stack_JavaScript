@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from 'src/prisma/prisma.service';
+import { PrismaService } from '../prisma/prisma.service';
 import { CreateCustomerData } from './accounts.types';
 
 @Injectable()
@@ -31,6 +31,7 @@ export class AccountsRepository {
         id: true,
         email: true,
         role: true,
+        agencyId: true,
       },
     });
   }
@@ -43,6 +44,7 @@ export class AccountsRepository {
       select: {
         id: true,
         role: true,
+        agencyId: true,
       },
     });
   }

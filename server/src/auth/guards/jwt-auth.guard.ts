@@ -51,7 +51,12 @@ export class JwtAuthGuard implements CanActivate {
       throw new UnauthorizedException();
     }
 
-    request.user = { id: payload.sub, role: payload.role, sid: payload.sid };
+    request.user = {
+      id: payload.sub,
+      role: payload.role,
+      sid: payload.sid,
+      agencyId: payload.agencyId ?? null,
+    };
 
     return true;
   }

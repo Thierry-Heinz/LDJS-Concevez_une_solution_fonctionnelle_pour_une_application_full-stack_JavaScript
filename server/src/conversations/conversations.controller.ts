@@ -1,0 +1,151 @@
+import {
+  Body,
+  Controller,
+  Get,
+  NotFoundException,
+  Param,
+  ParseUUIDPipe,
+  Post,
+  Req,
+} from '@nestjs/common';
+import {
+  ApiBadRequestResponse,
+  ApiBody,
+  ApiCookieAuth,
+  ApiCreatedResponse,
+  ApiForbiddenResponse,
+  ApiNotFoundResponse,
+  ApiOkResponse,
+  ApiOperation,
+  ApiParam,
+  ApiTags,
+  ApiUnauthorizedResponse,
+} from '@nestjs/swagger';
+import { ConversationsService } from './conversations.service';
+import { AuthService } from 'src/auth/auth.service';
+
+import { Public } from '../auth/decorators/public.decorators';
+import type { Request } from 'express';
+import { StartConversationDto } from './dto/start-conversation.dto';
+import { ConversationDto } from './dto/conversation.dto';
+import { MessageDto } from './dto/message.dto';
+
+@ApiTags('Conversations')
+@ApiCookieAuth('access_token')
+@ApiCookieAuth('guest_token')
+@ApiUnauthorizedResponse({
+  description: "Jeton d'accès ou jeton invité invalide ou expiré",
+})
+@Controller('conversations')
+export class ConversationsController {
+  constructor(
+    private readonly conversationsService: ConversationsService,
+    private readonly authService: AuthService,
+  ) {}
+
+  @Public()
+  @Get('current')
+  @ApiOperation({
+    summary: 'Récupérer la conversation en cours',
+    description:
+      "Renvoie la conversation ouverte du client connecté ou de l'invité. Réservé aux clients et aux invités.",
+  })
+  @ApiOkResponse({
+    description: 'Conversation ouverte',
+    type: ConversationDto.Output,
+  })
+  @ApiForbiddenResponse({ description: "L'utilisateur connecté est un agent" })
+  @ApiUnauthorizedResponse({
+    description:
+      "Aucun jeton d'accès ni jeton invité, ou jeton invalide ou expiré",
+  })
+  @ApiNotFoundResponse({ description: 'Aucune conversation ouverte' })
+  async current(@Req() request: Request) {
+    const identity = await this.authService.resolveIdentity(request.cookies);
+    const conversation = await this.conversationsService.findCurrent(identity);
+    if (!conversation) {
+      throw new NotFoundException();
+    }
+    return conversation;
+  }
+
+  @Public()
+  @Get('open')
+  @ApiOperation({
+    summary: "Lister les conversations ouvertes de l'agence",
+    description:
+      "Renvoie les conversations ouvertes de l'agence de l'agent connecté, de la plus ancienne à la plus récente. Réservé aux agents.",
+  })
+  @ApiOkResponse({
+    description: "Conversations ouvertes de l'agence",
+    type: [ConversationDto.Output],
+  })
+  @ApiForbiddenResponse({
+    description: "L'appelant n'est pas un agent rattaché à une agence",
+  })
+  async open(@Req() request: Request) {
+    const identity = await this.authService.resolveIdentity(request.cookies);
+    return this.conversationsService.listOpenForAgent(identity);
+  }
+
+  @Public()
+  @Get(':id/messages')
+  @ApiOperation({
+    summary: "Récupérer l'historique des messages",
+    description:
+      "Renvoie les messages d'une conversation, du plus ancien au plus récent, avec les informations d'affichage de l'auteur. Accessible au propriétaire de la conversation et aux agents de l'agence concernée.",
+  })
+  @ApiParam({
+    name: 'id',
+    format: 'uuid',
+    description: 'Identifiant de la conversation',
+  })
+  @ApiOkResponse({
+    description: 'Messages de la conversation',
+    type: [MessageDto.Output],
+  })
+  @ApiBadRequestResponse({ description: "L'identifiant n'est pas un UUID" })
+  @ApiForbiddenResponse({
+    description: "L'appelant n'a pas accès à cette conversation",
+  })
+  @ApiNotFoundResponse({ description: 'Conversation introuvable' })
+  async messages(
+    @Req() request: Request,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    const identity = await this.authService.resolveIdentity(request.cookies);
+    return this.conversationsService.getMessages(identity, id);
+  }
+
+  @Public()
+  @Post()
+  @ApiOperation({
+    summary: 'Démarrer une conversation',
+    description:
+      "Ouvre une conversation avec le service client central (GENERAL) ou une agence (AGENCY). Si le client ou l'invité a déjà une conversation ouverte, celle-ci est renvoyée. Réservé aux clients et aux invités.",
+  })
+  @ApiBody({
+    type: StartConversationDto,
+    description: 'Origine de la demande et agence éventuelle',
+  })
+  @ApiCreatedResponse({
+    description: 'Conversation créée, ou conversation ouverte existante',
+    type: ConversationDto.Output,
+  })
+  @ApiBadRequestResponse({
+    description:
+      'Données invalides (agencyId manquant pour une origine AGENCY)',
+  })
+  @ApiForbiddenResponse({ description: "L'utilisateur connecté est un agent" })
+  @ApiUnauthorizedResponse({
+    description:
+      "Aucun jeton d'accès ni jeton invité, ou jeton invalide ou expiré",
+  })
+  @ApiNotFoundResponse({
+    description: "Agence introuvable ou n'étant pas une agence locale",
+  })
+  async start(@Req() request: Request, @Body() dto: StartConversationDto) {
+    const identity = await this.authService.resolveIdentity(request.cookies);
+    return this.conversationsService.startConversation(identity, dto);
+  }
+}

@@ -1,4 +1,4 @@
 {
-  "typescript.tsdk": "server/node_modules/typescript/lib",
-  "js/ts.tsdk.path": "server/node_modules/typescript/lib"
+  "js/ts.tsdk.path": "server/node_modules/typescript/lib",
+  "js/ts.preferences.importModuleSpecifier": "relative"
 }

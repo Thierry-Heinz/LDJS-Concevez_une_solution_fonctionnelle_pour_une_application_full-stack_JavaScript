@@ -1,10 +1,14 @@
 import { Request } from 'express';
-import { Role } from 'src/generated/prisma/enums';
+import { Role } from '../generated/prisma/enums';
 
-export type AuthenticatedRequest = Request & {
-  user: { id: string; role: Role; sid: string };
+export type AuthUser = {
+  id: string;
+  role: Role;
+  sid: string;
+  agencyId: string | null;
 };
 
+export type AuthenticatedRequest = Request & { user: AuthUser };
 export type CreateRefreshTokenData = {
   id: string;
   userId: string;
@@ -18,17 +22,17 @@ export type RefreshTokenData = CreateRefreshTokenData & {
   revokedAt: Date;
 };
 
-export type AccessTokenPayload = {
-  sub: string; // l'id de l'utilisateur
+type JwtBasePayload = { sub: string; iat: number; exp: number };
+
+export type AccessTokenPayload = JwtBasePayload & {
   role: Role;
   sid: string;
-  iat: number; // date d'émission, ajoutée automatiquement (en secondes)
-  exp: number; // date d'expiration, ajoutée automatiquement
+  agencyId: string | null;
 };
 
-export type RefreshTokenPayload = {
-  sub: string;
-  jti: string;
-  iat: number;
-  exp: number;
-};
+export type RefreshTokenPayload = JwtBasePayload & { jti: string };
+
+export type Identity =
+  | { kind: 'user'; id: string; role: Role; agencyId: string | null }
+  | { kind: 'guest'; guestId: string }
+  | { kind: 'anonymous' };

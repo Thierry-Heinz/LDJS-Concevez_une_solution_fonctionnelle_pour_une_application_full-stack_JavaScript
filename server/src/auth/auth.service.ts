@@ -10,8 +10,12 @@ import { LoginDto } from './dto/login.dto';
 import { RefreshTokensRepository } from './refresh-tokens.repository';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
-import { Role } from 'src/generated/prisma/enums';
-import { AccessTokenPayload, RefreshTokenPayload } from './auth.types';
+import { Role } from '../generated/prisma/enums';
+import {
+  AccessTokenPayload,
+  Identity,
+  RefreshTokenPayload,
+} from './auth.types';
 
 @Injectable()
 export class AuthService implements OnModuleInit {
@@ -19,8 +23,10 @@ export class AuthService implements OnModuleInit {
   private readonly accessSecret: string;
   private readonly accessTtlSeconds: number;
   private readonly refreshSecret: string;
+  private readonly guestSecret: string;
   private readonly refreshIdleTtlSeconds: number;
   private readonly sessionAbsoluteTtlSeconds: number;
+  private readonly guestTtlSeconds: number;
 
   constructor(
     private readonly accountsService: AccountsService,
@@ -33,11 +39,15 @@ export class AuthService implements OnModuleInit {
       config.getOrThrow<string>('ACCESS_TOKEN_TTL_SECONDS'),
     );
     this.refreshSecret = config.getOrThrow<string>('JWT_REFRESH_SECRET');
+    this.guestSecret = config.getOrThrow<string>('JWT_GUEST_SECRET');
     this.refreshIdleTtlSeconds = Number(
       config.getOrThrow<string>('REFRESH_TOKEN_IDLE_TTL_SECONDS'),
     );
     this.sessionAbsoluteTtlSeconds = Number(
       config.getOrThrow<string>('SESSION_ABSOLUTE_TTL_SECONDS'),
+    );
+    this.guestTtlSeconds = Number(
+      config.getOrThrow<string>('GUEST_TOKEN_TTL_SECONDS'),
     );
   }
 
@@ -132,6 +142,75 @@ export class AuthService implements OnModuleInit {
     return { user, ...tokens };
   }
 
+  async issueGuestToken() {
+    const now = Date.now();
+
+    const guestTokenExpiresAt = new Date(now + this.guestTtlSeconds * 1000);
+
+    const guestId = crypto.randomUUID();
+    const guestToken = await this.jwtService.signAsync(
+      {
+        sub: guestId,
+      },
+      {
+        secret: this.guestSecret,
+        expiresIn: this.guestTtlSeconds,
+      },
+    );
+
+    return { guestToken, guestTokenExpiresAt };
+  }
+
+  async verifyGuestToken(token: string): Promise<string | null> {
+    try {
+      const payload = await this.jwtService.verifyAsync<{ sub: string }>(
+        token,
+        {
+          secret: this.guestSecret,
+        },
+      );
+      return payload.sub;
+    } catch {
+      return null;
+    }
+  }
+
+  async resolveIdentity(cookies: Record<string, unknown>): Promise<Identity> {
+    const accessToken = cookies?.access_token;
+    if (typeof accessToken === 'string') {
+      try {
+        const accessPayload =
+          await this.jwtService.verifyAsync<AccessTokenPayload>(accessToken, {
+            secret: this.accessSecret,
+          });
+        return {
+          kind: 'user',
+          id: accessPayload.sub,
+          role: accessPayload.role,
+          agencyId: accessPayload.agencyId ?? null,
+        };
+      } catch {
+        throw new UnauthorizedException();
+      }
+    }
+
+    const guestToken = cookies?.guest_token;
+    if (typeof guestToken === 'string') {
+      const guestId = await this.verifyGuestToken(guestToken);
+      if (!guestId) {
+        throw new UnauthorizedException();
+      }
+      return {
+        kind: 'guest',
+        guestId: guestId,
+      };
+    }
+
+    return {
+      kind: 'anonymous',
+    };
+  }
+
   private async verifyRefreshToken(
     token: string,
   ): Promise<RefreshTokenPayload> {
@@ -163,15 +242,11 @@ export class AuthService implements OnModuleInit {
     if (!valid) {
       return null;
     }
-    return {
-      id: user.id,
-      email: user.email,
-      role: user.role,
-    };
+    return user;
   }
 
   private async issueTokens(
-    user: { id: string; role: Role },
+    user: { id: string; role: Role; agencyId: string | null },
     session: { familyId: string; sessionExpiresAt: Date },
   ) {
     const now = Date.now();
@@ -183,6 +258,7 @@ export class AuthService implements OnModuleInit {
         sub: user.id,
         role: user.role,
         sid: session.familyId,
+        agencyId: user.agencyId,
       },
       {
         secret: this.accessSecret,

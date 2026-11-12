@@ -1,69 +1,110 @@
 import {
   ConnectedSocket,
   MessageBody,
+  OnGatewayInit,
   SubscribeMessage,
   WebSocketGateway,
   WebSocketServer,
 } from '@nestjs/websockets';
-import { Server, Socket } from 'socket.io';
+import { UseFilters } from '@nestjs/common';
+import { ZodValidationPipe } from 'nestjs-zod';
+import type { ChatServer, ChatSocket } from './chat.types';
+import type { MessageSentAck, OkAck } from './chat.events';
+import { AuthService } from '../auth/auth.service';
+import { ConversationsService } from '../conversations/conversations.service';
+import { createWsAuthMiddleware } from './ws-auth.middleware';
+import { JoinConversationDto } from './dto/join-conversation.dto';
+import { SendMessageDto } from './dto/send-message.dto';
+import { WsExceptionsFilter } from './ws-exceptions.filter';
 
-// Forme des données envoyées par le client
-interface SendMessagePayload {
-  content: string;
-}
+@UseFilters(new WsExceptionsFilter())
+@WebSocketGateway({
+  cors: { origin: 'http://localhost:5173', credentials: true },
+})
+export class ChatGateway implements OnGatewayInit {
+  @WebSocketServer() server!: ChatServer;
 
-// Forme du message diffusé par le serveur
-interface ChatMessage {
-  id: string;
-  authorId: string;
-  content: string;
-  sentAt: string; // ISO 8601, en UTC
-}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly conversationsService: ConversationsService,
+  ) {}
 
-interface JoinConversationPayload {
-  conversationId: string;
-}
-
-@WebSocketGateway()
-export class ChatGateway {
-  @WebSocketServer()
-  server!: Server;
-
-  @SubscribeMessage('message:send')
-  handleSendMessage(
-    @MessageBody() payload: SendMessagePayload,
-    @ConnectedSocket() client: Socket,
-  ): { status: 'ok'; id: string } {
-    const message: ChatMessage = {
-      id: crypto.randomUUID(),
-      authorId: client.id, // provisoire : sera l'id utilisateur issu du JWT
-      content: payload.content,
-      sentAt: new Date().toISOString(),
-    };
-
-    // Diffusion à tous les clients connectés, émetteur compris
-    this.server.emit('message:new', message);
-
-    // Accusé de réception, reçu uniquement par l'émetteur
-    return { status: 'ok', id: message.id };
+  afterInit(server: ChatServer) {
+    server.use(createWsAuthMiddleware(this.authService));
   }
 
   @SubscribeMessage('conversation:join')
   async handleJoinConversation(
-    @MessageBody() payload: JoinConversationPayload,
-    @ConnectedSocket() client: Socket,
-  ): Promise<{ status: 'ok'; conversationId: string }> {
-    const room = `conversation:${payload.conversationId}`;
+    @MessageBody(new ZodValidationPipe(JoinConversationDto))
+    payload: JoinConversationDto,
 
-    await client.join(room);
+    @ConnectedSocket() client: ChatSocket,
+  ): Promise<OkAck> {
+    const identity = client.data.identity;
 
-    const message = {
+    await this.conversationsService.assertCanJoin(
+      identity,
+      payload.conversationId,
+    );
+    const participant =
+      await this.conversationsService.getParticipant(identity);
+    const roomName = this.roomName(payload.conversationId);
+
+    await client.join(roomName);
+
+    client.to(roomName).emit('conversation:participant-joined', {
       conversationId: payload.conversationId,
-      userId: client.id, // provisoire : sera l'id utilisateur issu du JWT
+      participant,
       joinedAt: new Date().toISOString(),
-    };
+    });
+    return { status: 'ok' };
+  }
 
-    client.to(room).emit('conversation:user-joined', message);
-    return { status: 'ok', conversationId: payload.conversationId };
+  @SubscribeMessage('message:send')
+  async handleSendMessage(
+    @MessageBody(new ZodValidationPipe(SendMessageDto)) payload: SendMessageDto,
+    @ConnectedSocket() client: ChatSocket,
+  ): Promise<MessageSentAck> {
+    const identity = client.data.identity;
+    const roomName = this.roomName(payload.conversationId);
+    const message = await this.conversationsService.postMessage(
+      identity,
+      payload.conversationId,
+      payload.content,
+    );
+
+    this.server.to(roomName).emit('message:new', {
+      ...message,
+      sentAt: message.sentAt.toISOString(),
+    });
+    return { status: 'ok', id: message.id };
+  }
+
+  @SubscribeMessage('conversation:close')
+  async handleCloseConversation(
+    @MessageBody(new ZodValidationPipe(JoinConversationDto))
+    payload: JoinConversationDto,
+    @ConnectedSocket() client: ChatSocket,
+  ): Promise<OkAck> {
+    const identity = client.data.identity;
+
+    const roomName = this.roomName(payload.conversationId);
+    const conversation = await this.conversationsService.closeConversation(
+      identity,
+      payload.conversationId,
+    );
+    const closedBy = await this.conversationsService.getParticipant(identity);
+
+    this.server.to(roomName).emit('conversation:closed', {
+      conversationId: payload.conversationId,
+      closedAt: (conversation.closedAt ?? new Date()).toISOString(),
+      closedBy,
+    });
+    this.server.in(roomName).socketsLeave(roomName);
+    return { status: 'ok' };
+  }
+
+  private roomName(conversationId: string) {
+    return `conversation:${conversationId}`;
   }
 }

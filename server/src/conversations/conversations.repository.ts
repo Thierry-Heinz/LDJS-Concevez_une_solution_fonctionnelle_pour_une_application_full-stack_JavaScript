@@ -1,0 +1,65 @@
+import { Injectable } from '@nestjs/common';
+import { PrismaService } from '../prisma/prisma.service';
+import { ConversationStatus } from '../generated/prisma/enums';
+import type {
+  ConversationOwner,
+  CreateConversationData,
+  CreateMessageData,
+} from './conversations.types';
+import type { Prisma } from '../generated/prisma/client';
+
+const includeName = {
+  senderAgency: { select: { name: true } },
+  senderUser: { select: { customer: { select: { firstName: true } } } },
+} satisfies Prisma.MessageInclude;
+
+@Injectable()
+export class ConversationsRepository {
+  constructor(private readonly prisma: PrismaService) {}
+
+  create(data: CreateConversationData) {
+    return this.prisma.conversation.create({ data });
+  }
+
+  findById(id: string) {
+    return this.prisma.conversation.findUnique({ where: { id } });
+  }
+
+  findOpenByOwner(owner: ConversationOwner) {
+    return this.prisma.conversation.findFirst({
+      where: { ...owner, status: ConversationStatus.OPEN },
+    });
+  }
+
+  findOpenByAgencyId(agencyId: string) {
+    return this.prisma.conversation.findMany({
+      where: { agencyId, status: ConversationStatus.OPEN },
+      orderBy: { openedAt: 'asc' },
+    });
+  }
+
+  findMessages(conversationId: string) {
+    return this.prisma.message.findMany({
+      where: { conversationId },
+      orderBy: { sentAt: 'asc' },
+      include: includeName,
+    });
+  }
+
+  createMessage(data: CreateMessageData) {
+    return this.prisma.message.create({
+      data,
+      include: includeName,
+    });
+  }
+
+  close(id: string) {
+    return this.prisma.conversation.update({
+      where: { id },
+      data: {
+        status: ConversationStatus.CLOSED,
+        closedAt: new Date(),
+      },
+    });
+  }
+}
