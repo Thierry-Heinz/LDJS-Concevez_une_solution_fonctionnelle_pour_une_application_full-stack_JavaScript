@@ -28,6 +28,7 @@ export class ConversationsService {
   ) {}
 
   async assertCanAccess(identity: Identity, conversationId: string) {
+    this.assertIdentified(identity);
     const conversation =
       await this.conversationsRepository.findById(conversationId);
     if (!conversation) {
@@ -103,6 +104,7 @@ export class ConversationsService {
   }
 
   async listOpenForAgent(identity: Identity) {
+    this.assertIdentified(identity);
     if (
       identity.kind !== 'user' ||
       identity.role !== Role.AGENT ||
@@ -147,7 +149,7 @@ export class ConversationsService {
         }
         throw new ForbiddenException();
       case 'anonymous':
-        throw new ForbiddenException();
+        throw new UnauthorizedException();
     }
   }
 
@@ -239,6 +241,14 @@ export class ConversationsService {
         return { guestId: identity.guestId };
       case 'anonymous':
         throw new UnauthorizedException();
+    }
+  }
+
+  // 401 : on ne sait pas qui appelle. Le 403 reste réservé à une identité
+  // connue qui n'a pas le droit d'agir.
+  private assertIdentified(identity: Identity) {
+    if (identity.kind === 'anonymous') {
+      throw new UnauthorizedException();
     }
   }
 

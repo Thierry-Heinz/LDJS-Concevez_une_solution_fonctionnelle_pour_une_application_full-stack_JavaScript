@@ -37,7 +37,8 @@ import { MessageDto } from './dto/message.dto';
 @ApiCookieAuth('access_token')
 @ApiCookieAuth('guest_token')
 @ApiUnauthorizedResponse({
-  description: "Jeton d'accès ou jeton invité invalide ou expiré",
+  description:
+    "Aucun jeton d'accès ni jeton invité, ou jeton invalide ou expiré",
 })
 @Controller('conversations')
 export class ConversationsController {
@@ -58,10 +59,6 @@ export class ConversationsController {
     type: ConversationDto.Output,
   })
   @ApiForbiddenResponse({ description: "L'utilisateur connecté est un agent" })
-  @ApiUnauthorizedResponse({
-    description:
-      "Aucun jeton d'accès ni jeton invité, ou jeton invalide ou expiré",
-  })
   @ApiNotFoundResponse({ description: 'Aucune conversation ouverte' })
   async current(@Req() request: Request) {
     const identity = await this.authService.resolveIdentity(request.cookies);
@@ -148,10 +145,6 @@ export class ConversationsController {
       'Données invalides (agencyId manquant pour une origine AGENCY)',
   })
   @ApiForbiddenResponse({ description: "L'utilisateur connecté est un agent" })
-  @ApiUnauthorizedResponse({
-    description:
-      "Aucun jeton d'accès ni jeton invité, ou jeton invalide ou expiré",
-  })
   @ApiNotFoundResponse({
     description: "Agence introuvable ou n'étant pas une agence locale",
   })

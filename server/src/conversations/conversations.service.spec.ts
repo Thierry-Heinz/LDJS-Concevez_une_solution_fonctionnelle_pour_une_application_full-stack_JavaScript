@@ -137,13 +137,19 @@ describe('ConversationsService', () => {
       ['un autre client', otherCustomer, ownedByCustomer],
       ['un client sur la conversation d’un invité', customer, owned],
       ['un agent d’une autre agence', parisAgent, owned],
-      ['un visiteur anonyme', anonymous, owned],
     ])('refuse %s (403)', async (_label, identity, existing) => {
       repository.findById.mockResolvedValue(existing);
 
       await expect(
         service.assertCanAccess(identity, existing.id),
       ).rejects.toBeInstanceOf(ForbiddenException);
+    });
+
+    it('refuse un visiteur anonyme (401) sans lire la conversation', async () => {
+      await expect(
+        service.assertCanAccess(anonymous, owned.id),
+      ).rejects.toBeInstanceOf(UnauthorizedException);
+      expect(repository.findById).not.toHaveBeenCalled();
     });
 
     it('renvoie 404 quand la conversation est introuvable', async () => {
@@ -433,11 +439,16 @@ describe('ConversationsService', () => {
     it.each([
       ['un client', customer],
       ['un invité', guest],
-      ['un visiteur anonyme', anonymous],
       ['un agent sans agence', { ...lyonAgent, agencyId: null }],
     ])('refuse %s (403)', async (_label, identity) => {
       await expect(service.listOpenForAgent(identity)).rejects.toBeInstanceOf(
         ForbiddenException,
+      );
+    });
+
+    it('refuse un visiteur anonyme (401)', async () => {
+      await expect(service.listOpenForAgent(anonymous)).rejects.toBeInstanceOf(
+        UnauthorizedException,
       );
     });
   });
@@ -480,9 +491,9 @@ describe('ConversationsService', () => {
       });
     });
 
-    it('refuse un visiteur anonyme (403)', async () => {
+    it('refuse un visiteur anonyme (401)', async () => {
       await expect(service.getParticipant(anonymous)).rejects.toBeInstanceOf(
-        ForbiddenException,
+        UnauthorizedException,
       );
     });
   });

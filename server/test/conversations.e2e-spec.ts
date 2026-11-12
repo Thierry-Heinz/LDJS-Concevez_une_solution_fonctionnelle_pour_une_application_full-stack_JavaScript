@@ -198,8 +198,8 @@ describe('Conversations (e2e)', () => {
         .expect(403);
     });
 
-    it('refuse une requête sans identité (403)', async () => {
-      await request(t.server).get('/api/conversations/open').expect(403);
+    it('refuse une requête sans identité (401)', async () => {
+      await request(t.server).get('/api/conversations/open').expect(401);
     });
   });
 
@@ -249,6 +249,14 @@ describe('Conversations (e2e)', () => {
         .get('/api/conversations/00000000-0000-4000-8000-000000000000/messages')
         .set('Cookie', await agentCookie('lyon'))
         .expect(404);
+    });
+
+    it('refuse une requête sans identité (401)', async () => {
+      const { id } = await lyonConversation();
+
+      await request(t.server)
+        .get(`/api/conversations/${id}/messages`)
+        .expect(401);
     });
 
     it('refuse un identifiant qui n’est pas un UUID (400)', async () => {
