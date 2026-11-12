@@ -29,6 +29,7 @@ import type { AuthenticatedRequest } from './auth.types';
 import { AccountsService } from '../accounts/accounts.service';
 import { UserProfileDto } from './dto/user-profile.dto';
 import { RefreshedUserDto, SessionUserDto } from './dto/session-user.dto';
+import { ApiErrorDto } from '../common/dto/api-error.dto';
 
 @ApiTags('Authentification')
 @Controller('auth')
@@ -51,6 +52,7 @@ export class AuthController {
   })
   @ApiUnauthorizedResponse({
     description: "Jeton d'accès absent, invalide ou expiré, ou compte supprimé",
+    type: ApiErrorDto.Output,
   })
   async me(@Req() request: AuthenticatedRequest) {
     const user = await this.accountsService.getProfile(request.user.id);
@@ -102,9 +104,13 @@ export class AuthController {
   })
   @ApiBody({ type: RegisterDto, description: 'Informations du nouveau client' })
   @ApiCreatedResponse({ description: 'Compte client créé' })
-  @ApiBadRequestResponse({ description: "Données d'inscription invalides" })
+  @ApiBadRequestResponse({
+    description: "Données d'inscription invalides",
+    type: ApiErrorDto.Output,
+  })
   @ApiConflictResponse({
     description: 'Adresse e-mail déjà utilisée : code EMAIL_ALREADY_USED',
+    type: ApiErrorDto.Output,
   })
   register(@Body() dto: RegisterDto) {
     return this.authService.register(dto);
@@ -123,8 +129,14 @@ export class AuthController {
     description: 'Connexion réussie, utilisateur connecté',
     type: SessionUserDto.Output,
   })
-  @ApiBadRequestResponse({ description: 'Données de connexion invalides' })
-  @ApiUnauthorizedResponse({ description: 'Identifiants incorrects' })
+  @ApiBadRequestResponse({
+    description: 'Données de connexion invalides',
+    type: ApiErrorDto.Output,
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Identifiants incorrects',
+    type: ApiErrorDto.Output,
+  })
   async login(
     @Body() dto: LoginDto,
     @Res({ passthrough: true }) res: Response,
@@ -150,6 +162,7 @@ export class AuthController {
   @ApiUnauthorizedResponse({
     description:
       'Jeton de rafraîchissement absent, invalide, révoqué ou session expirée',
+    type: ApiErrorDto.Output,
   })
   async refresh(
     @Req() request: Request,

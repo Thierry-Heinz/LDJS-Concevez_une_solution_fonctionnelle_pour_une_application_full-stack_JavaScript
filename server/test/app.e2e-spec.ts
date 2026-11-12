@@ -68,6 +68,42 @@ describe('Application (e2e)', () => {
         ]),
       );
     });
+
+    it('décrit chaque réponse JSON objet par un schéma nommé', async () => {
+      const response = await request(t.server)
+        .get('/api/docs-json')
+        .expect(200);
+
+      type Schema = { $ref?: string; type?: string; items?: Schema };
+      type Doc = {
+        paths: Record<
+          string,
+          Record<
+            string,
+            {
+              responses: Record<
+                string,
+                { content?: Record<string, { schema: Schema }> }
+              >;
+            }
+          >
+        >;
+      };
+      const { paths } = response.body as Doc;
+      const inline: string[] = [];
+      for (const [path, methods] of Object.entries(paths)) {
+        for (const [method, { responses }] of Object.entries(methods)) {
+          for (const [status, { content }] of Object.entries(responses)) {
+            const schema = content?.['application/json']?.schema;
+            const isObject = schema && schema.type !== 'string'; // GET /api renvoie du texte
+            if (isObject && !(schema.$ref ?? schema.items?.$ref)) {
+              inline.push(`${method} ${path} ${status}`);
+            }
+          }
+        }
+      }
+      expect(inline).toEqual([]);
+    });
   });
 
   describe('CORS', () => {

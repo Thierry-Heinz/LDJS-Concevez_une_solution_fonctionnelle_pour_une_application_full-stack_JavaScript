@@ -32,6 +32,7 @@ import type { Request, Response } from 'express';
 import { StartConversationDto } from './dto/start-conversation.dto';
 import { ConversationDto } from './dto/conversation.dto';
 import { MessageDto } from './dto/message.dto';
+import { ApiErrorDto } from '../common/dto/api-error.dto';
 
 @ApiTags('Conversations')
 @ApiCookieAuth('access_token')
@@ -39,6 +40,7 @@ import { MessageDto } from './dto/message.dto';
 @ApiUnauthorizedResponse({
   description:
     "Aucun jeton d'accès ni jeton invité, ou jeton invalide ou expiré",
+  type: ApiErrorDto.Output,
 })
 @Controller('conversations')
 export class ConversationsController {
@@ -58,8 +60,14 @@ export class ConversationsController {
     description: 'Conversation ouverte',
     type: ConversationDto.Output,
   })
-  @ApiForbiddenResponse({ description: "L'utilisateur connecté est un agent" })
-  @ApiNotFoundResponse({ description: 'Aucune conversation ouverte' })
+  @ApiForbiddenResponse({
+    description: "L'utilisateur connecté est un agent",
+    type: ApiErrorDto.Output,
+  })
+  @ApiNotFoundResponse({
+    description: 'Aucune conversation ouverte',
+    type: ApiErrorDto.Output,
+  })
   async current(@Req() request: Request) {
     const identity = await this.authService.resolveIdentity(request.cookies);
     const conversation = await this.conversationsService.findCurrent(identity);
@@ -82,6 +90,7 @@ export class ConversationsController {
   })
   @ApiForbiddenResponse({
     description: "L'appelant n'est pas un agent rattaché à une agence",
+    type: ApiErrorDto.Output,
   })
   async open(@Req() request: Request) {
     const identity = await this.authService.resolveIdentity(request.cookies);
@@ -104,11 +113,18 @@ export class ConversationsController {
     description: 'Messages de la conversation',
     type: [MessageDto.Output],
   })
-  @ApiBadRequestResponse({ description: "L'identifiant n'est pas un UUID" })
+  @ApiBadRequestResponse({
+    description: "L'identifiant n'est pas un UUID",
+    type: ApiErrorDto.Output,
+  })
   @ApiForbiddenResponse({
     description: "L'appelant n'a pas accès à cette conversation",
+    type: ApiErrorDto.Output,
   })
-  @ApiNotFoundResponse({ description: 'Conversation introuvable' })
+  @ApiNotFoundResponse({
+    description: 'Conversation introuvable',
+    type: ApiErrorDto.Output,
+  })
   async messages(
     @Req() request: Request,
     @Param('id', ParseUUIDPipe) id: string,
@@ -139,14 +155,20 @@ export class ConversationsController {
   @ApiConflictResponse({
     description:
       'Une conversation est déjà ouverte vers une autre cible : code CONVERSATION_ALREADY_OPEN et conversationId de la conversation existante',
+    type: ApiErrorDto.Output,
   })
   @ApiBadRequestResponse({
     description:
       'Données invalides (agencyId manquant pour une origine AGENCY)',
+    type: ApiErrorDto.Output,
   })
-  @ApiForbiddenResponse({ description: "L'utilisateur connecté est un agent" })
+  @ApiForbiddenResponse({
+    description: "L'utilisateur connecté est un agent",
+    type: ApiErrorDto.Output,
+  })
   @ApiNotFoundResponse({
     description: "Agence introuvable ou n'étant pas une agence locale",
+    type: ApiErrorDto.Output,
   })
   async start(
     @Req() request: Request,
