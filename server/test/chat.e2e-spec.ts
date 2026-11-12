@@ -2,6 +2,7 @@ import request from 'supertest';
 import { io, type Socket } from 'socket.io-client';
 import type {
   ClientToServerEvents,
+  MessageSentAck,
   ServerToClientEvents,
 } from '../src/chat/chat.events';
 import {
@@ -19,10 +20,10 @@ type ServerEvent = keyof ServerToClientEvents;
 type EventPayload<E extends ServerEvent> = Parameters<
   ServerToClientEvents[E]
 >[0];
+type UntypedSocket = { emit(event: string, payload: unknown): void };
 
 const LYON_NAME = 'Your Car Your Way – Lyon Part-Dieu';
 const EVENT_TIMEOUT_MS = 2000;
-const noop = () => undefined;
 
 describe('Chat temps réel (e2e)', () => {
   let t: TestApp;
@@ -184,7 +185,7 @@ describe('Chat temps réel (e2e)', () => {
 
       expect(ack).toEqual({ status: 'ok', id: expect.any(String) });
       const expected = {
-        id: ack.id,
+        id: (ack as MessageSentAck).id,
         conversationId,
         senderType: 'GUEST',
         senderUserId: null,
@@ -243,96 +244,123 @@ describe('Chat temps réel (e2e)', () => {
     });
   });
 
-  describe('chat:error', () => {
-    it('émet FORBIDDEN quand un agent d’une autre agence rejoint la conversation', async () => {
+  describe('erreurs', () => {
+    it('répond FORBIDDEN dans l’ack quand un agent d’une autre agence rejoint la conversation', async () => {
+      const { conversationId } = await lyonConversation();
+      const { accessToken } = await loginAgent(t.server, 'paris');
+      const parisAgent = await connect(`access_token=${accessToken}`);
+      const chatError = jest.fn();
+      parisAgent.on('chat:error', chatError);
+
+      await expect(
+        parisAgent.emitWithAck('conversation:join', { conversationId }),
+      ).resolves.toEqual({
+        status: 'error',
+        error: { code: 'FORBIDDEN', message: 'Forbidden' },
+      });
+      expect(chatError).not.toHaveBeenCalled();
+    });
+
+    it('répond NOT_FOUND pour une conversation inconnue', async () => {
+      const { agent } = await lyonConversation();
+
+      await expect(
+        agent.emitWithAck('conversation:join', {
+          conversationId: '00000000-0000-4000-8000-000000000000',
+        }),
+      ).resolves.toMatchObject({
+        status: 'error',
+        error: { code: 'NOT_FOUND' },
+      });
+    });
+
+    it('répond VALIDATION_FAILED avec le détail pour un identifiant invalide', async () => {
+      const { agent } = await lyonConversation();
+
+      await expect(
+        agent.emitWithAck('conversation:join', {
+          conversationId: 'pas-un-uuid',
+        }),
+      ).resolves.toMatchObject({
+        status: 'error',
+        error: {
+          code: 'VALIDATION_FAILED',
+          details: [expect.objectContaining({ path: ['conversationId'] })],
+        },
+      });
+    });
+
+    it('répond VALIDATION_FAILED pour un message vide', async () => {
+      const { conversationId, guest } = await joinBoth();
+
+      await expect(
+        guest.emitWithAck('message:send', { conversationId, content: '   ' }),
+      ).resolves.toMatchObject({
+        status: 'error',
+        error: {
+          code: 'VALIDATION_FAILED',
+          details: [expect.objectContaining({ path: ['content'] })],
+        },
+      });
+      await expect(t.prisma.message.count()).resolves.toBe(0);
+    });
+
+    it('répond CONVERSATION_CLOSED pour rejoindre une conversation fermée', async () => {
+      const { conversationId, guest, agent } = await lyonConversation();
+      await agent.emitWithAck('conversation:join', { conversationId });
+      await agent.emitWithAck('conversation:close', { conversationId });
+
+      await expect(
+        guest.emitWithAck('conversation:join', { conversationId }),
+      ).resolves.toMatchObject({
+        status: 'error',
+        error: { code: 'CONVERSATION_CLOSED' },
+      });
+    });
+
+    it('répond CONVERSATION_CLOSED pour un message sur une conversation fermée', async () => {
+      const { conversationId, guest, agent } = await joinBoth();
+      await agent.emitWithAck('conversation:close', { conversationId });
+
+      await expect(
+        guest.emitWithAck('message:send', {
+          conversationId,
+          content: 'Encore là ?',
+        }),
+      ).resolves.toMatchObject({
+        status: 'error',
+        error: { code: 'CONVERSATION_CLOSED' },
+      });
+      await expect(t.prisma.message.count()).resolves.toBe(0);
+    });
+
+    it('répond CONVERSATION_CLOSED pour fermer une conversation déjà fermée', async () => {
+      const { conversationId, agent } = await lyonConversation();
+      await agent.emitWithAck('conversation:join', { conversationId });
+      await agent.emitWithAck('conversation:close', { conversationId });
+
+      await expect(
+        agent.emitWithAck('conversation:close', { conversationId }),
+      ).resolves.toMatchObject({
+        status: 'error',
+        error: { code: 'CONVERSATION_CLOSED' },
+      });
+    });
+
+    it('émet chat:error avec le nom de l’événement quand le client n’a pas fourni d’ack', async () => {
       const { conversationId } = await lyonConversation();
       const { accessToken } = await loginAgent(t.server, 'paris');
       const parisAgent = await connect(`access_token=${accessToken}`);
       const error = nextEvent(parisAgent, 'chat:error');
 
-      parisAgent.emit('conversation:join', { conversationId }, noop);
-
-      await expect(error).resolves.toMatchObject({ code: 'FORBIDDEN' });
-    });
-
-    it('émet NOT_FOUND pour une conversation inconnue', async () => {
-      const { agent } = await lyonConversation();
-      const error = nextEvent(agent, 'chat:error');
-
-      agent.emit(
-        'conversation:join',
-        { conversationId: '00000000-0000-4000-8000-000000000000' },
-        noop,
-      );
-
-      await expect(error).resolves.toMatchObject({ code: 'NOT_FOUND' });
-    });
-
-    it('émet VALIDATION_FAILED avec le détail pour un identifiant invalide', async () => {
-      const { agent } = await lyonConversation();
-      const error = nextEvent(agent, 'chat:error');
-
-      agent.emit('conversation:join', { conversationId: 'pas-un-uuid' }, noop);
-
-      await expect(error).resolves.toMatchObject({
-        code: 'VALIDATION_FAILED',
-        details: [expect.objectContaining({ path: ['conversationId'] })],
+      // Le contrat impose un ack : on le contourne pour simuler un client qui n'en fournit pas.
+      (parisAgent as unknown as UntypedSocket).emit('conversation:join', {
+        conversationId,
       });
-    });
-
-    it('émet VALIDATION_FAILED pour un message vide', async () => {
-      const { conversationId, guest } = await joinBoth();
-      const error = nextEvent(guest, 'chat:error');
-
-      guest.emit('message:send', { conversationId, content: '   ' }, noop);
 
       await expect(error).resolves.toMatchObject({
-        code: 'VALIDATION_FAILED',
-        details: [expect.objectContaining({ path: ['content'] })],
-      });
-      await expect(t.prisma.message.count()).resolves.toBe(0);
-    });
-
-    it('émet CONVERSATION_CLOSED pour rejoindre une conversation fermée', async () => {
-      const { conversationId, guest, agent } = await lyonConversation();
-      await agent.emitWithAck('conversation:join', { conversationId });
-      await agent.emitWithAck('conversation:close', { conversationId });
-      const error = nextEvent(guest, 'chat:error');
-
-      guest.emit('conversation:join', { conversationId }, noop);
-
-      await expect(error).resolves.toMatchObject({
-        code: 'CONVERSATION_CLOSED',
-      });
-    });
-
-    it('émet CONVERSATION_CLOSED pour un message sur une conversation fermée', async () => {
-      const { conversationId, guest, agent } = await joinBoth();
-      await agent.emitWithAck('conversation:close', { conversationId });
-      const error = nextEvent(guest, 'chat:error');
-
-      guest.emit(
-        'message:send',
-        { conversationId, content: 'Encore là ?' },
-        noop,
-      );
-
-      await expect(error).resolves.toMatchObject({
-        code: 'CONVERSATION_CLOSED',
-      });
-      await expect(t.prisma.message.count()).resolves.toBe(0);
-    });
-
-    it('émet CONVERSATION_CLOSED pour fermer une conversation déjà fermée', async () => {
-      const { conversationId, agent } = await lyonConversation();
-      await agent.emitWithAck('conversation:join', { conversationId });
-      await agent.emitWithAck('conversation:close', { conversationId });
-      const error = nextEvent(agent, 'chat:error');
-
-      agent.emit('conversation:close', { conversationId }, noop);
-
-      await expect(error).resolves.toMatchObject({
-        code: 'CONVERSATION_CLOSED',
+        code: 'FORBIDDEN',
+        event: 'conversation:join',
       });
     });
   });
