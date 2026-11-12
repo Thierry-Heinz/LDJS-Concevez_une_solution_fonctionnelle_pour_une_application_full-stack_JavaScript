@@ -10,33 +10,102 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AgentRouteImport } from './routes/agent'
+import { Route as ConnexionRouteImport } from './routes/connexion'
+import { Route as DonneesPersonnellesRouteImport } from './routes/donnees-personnelles'
+import { Route as InscriptionRouteImport } from './routes/inscription'
+import { Route as AgencesAgenceIdRouteImport } from './routes/agences.$agenceId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AgentRoute = AgentRouteImport.update({
+  id: '/agent',
+  path: '/agent',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ConnexionRoute = ConnexionRouteImport.update({
+  id: '/connexion',
+  path: '/connexion',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DonneesPersonnellesRoute = DonneesPersonnellesRouteImport.update({
+  id: '/donnees-personnelles',
+  path: '/donnees-personnelles',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const InscriptionRoute = InscriptionRouteImport.update({
+  id: '/inscription',
+  path: '/inscription',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AgencesAgenceIdRoute = AgencesAgenceIdRouteImport.update({
+  id: '/agences/$agenceId',
+  path: '/agences/$agenceId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/agent': typeof AgentRoute
+  '/connexion': typeof ConnexionRoute
+  '/donnees-personnelles': typeof DonneesPersonnellesRoute
+  '/inscription': typeof InscriptionRoute
+  '/agences/$agenceId': typeof AgencesAgenceIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/agent': typeof AgentRoute
+  '/connexion': typeof ConnexionRoute
+  '/donnees-personnelles': typeof DonneesPersonnellesRoute
+  '/inscription': typeof InscriptionRoute
+  '/agences/$agenceId': typeof AgencesAgenceIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/agent': typeof AgentRoute
+  '/connexion': typeof ConnexionRoute
+  '/donnees-personnelles': typeof DonneesPersonnellesRoute
+  '/inscription': typeof InscriptionRoute
+  '/agences/$agenceId': typeof AgencesAgenceIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/agent'
+    | '/connexion'
+    | '/donnees-personnelles'
+    | '/inscription'
+    | '/agences/$agenceId'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/agent'
+    | '/connexion'
+    | '/donnees-personnelles'
+    | '/inscription'
+    | '/agences/$agenceId'
+  id:
+    | '__root__'
+    | '/'
+    | '/agent'
+    | '/connexion'
+    | '/donnees-personnelles'
+    | '/inscription'
+    | '/agences/$agenceId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AgentRoute: typeof AgentRoute
+  ConnexionRoute: typeof ConnexionRoute
+  DonneesPersonnellesRoute: typeof DonneesPersonnellesRoute
+  InscriptionRoute: typeof InscriptionRoute
+  AgencesAgenceIdRoute: typeof AgencesAgenceIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,11 +117,51 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/agent': {
+      id: '/agent'
+      path: '/agent'
+      fullPath: '/agent'
+      preLoaderRoute: typeof AgentRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/connexion': {
+      id: '/connexion'
+      path: '/connexion'
+      fullPath: '/connexion'
+      preLoaderRoute: typeof ConnexionRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/donnees-personnelles': {
+      id: '/donnees-personnelles'
+      path: '/donnees-personnelles'
+      fullPath: '/donnees-personnelles'
+      preLoaderRoute: typeof DonneesPersonnellesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/inscription': {
+      id: '/inscription'
+      path: '/inscription'
+      fullPath: '/inscription'
+      preLoaderRoute: typeof InscriptionRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/agences/$agenceId': {
+      id: '/agences/$agenceId'
+      path: '/agences/$agenceId'
+      fullPath: '/agences/$agenceId'
+      preLoaderRoute: typeof AgencesAgenceIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AgentRoute: AgentRoute,
+  ConnexionRoute: ConnexionRoute,
+  DonneesPersonnellesRoute: DonneesPersonnellesRoute,
+  InscriptionRoute: InscriptionRoute,
+  AgencesAgenceIdRoute: AgencesAgenceIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
