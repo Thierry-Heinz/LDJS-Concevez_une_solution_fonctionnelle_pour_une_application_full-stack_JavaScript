@@ -22,7 +22,7 @@ import {
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 import { ConversationsService } from './conversations.service';
-import { AuthService } from 'src/auth/auth.service';
+import { AuthService } from '../auth/auth.service';
 
 import { Public } from '../auth/decorators/public.decorators';
 import type { Request } from 'express';
