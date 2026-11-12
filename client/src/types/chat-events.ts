@@ -1,5 +1,3 @@
-/** COPIE de chat.events.ts de /server */
-
 // Contrat des événements Socket.IO du chat.
 // Ce fichier ne dépend ni de Nest ni de Prisma : il pourra être copié tel quel côté front.
 
