@@ -37,6 +37,7 @@ export class ChatGateway implements OnGatewayInit {
   async handleJoinConversation(
     @MessageBody(new ZodValidationPipe(JoinConversationDto))
     payload: JoinConversationDto,
+
     @ConnectedSocket() client: ChatSocket,
   ): Promise<OkAck> {
     const identity = client.data.identity;
