@@ -5,6 +5,7 @@ import { AuthModule } from '../src/auth/auth.module';
 import { AuthService } from '../src/auth/auth.service';
 import { PrismaModule } from '../src/prisma/prisma.module';
 import { PrismaService } from '../src/prisma/prisma.service';
+import request from 'supertest';
 import { createTestApp, type TestApp } from './setup/app';
 
 // Sans strict, get() cherche dans toute l'application et renvoie la première
@@ -38,6 +39,29 @@ describe('Application (e2e)', () => {
 
       expect(authService['accountsService']).toBe(
         t.app.select(AccountsModule).get(AccountsService, STRICT),
+      );
+    });
+  });
+
+  describe('configuration HTTP', () => {
+    it('ne révèle pas le framework dans l’en-tête x-powered-by', async () => {
+      const response = await request(t.server).get('/api/agencies').expect(200);
+
+      expect(response.headers['x-powered-by']).toBeUndefined();
+    });
+
+    it('sert le document OpenAPI sur /api/docs-json', async () => {
+      const response = await request(t.server)
+        .get('/api/docs-json')
+        .expect(200);
+
+      const paths = (response.body as { paths: Record<string, unknown> }).paths;
+      expect(Object.keys(paths)).toEqual(
+        expect.arrayContaining([
+          '/api/auth/register',
+          '/api/conversations',
+          '/api/agencies',
+        ]),
       );
     });
   });

@@ -1,11 +1,11 @@
 import { Test } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
 import type { NestExpressApplication } from '@nestjs/platform-express';
-import cookieParser from 'cookie-parser';
 import request from 'supertest';
 import type { App } from 'supertest/types';
 import type { AddressInfo } from 'node:net';
 import { AppModule } from '../../src/app.module';
+import { configureApp, setupSwagger } from '../../src/app.setup';
 import { PrismaService } from '../../src/prisma/prisma.service';
 import { Role } from '../../src/generated/prisma/enums';
 
@@ -38,7 +38,7 @@ export type TestApp = {
   url: string;
 };
 
-/** Démarre l'application comme main.ts (préfixe /api, cookies) sur un port libre. */
+/** Démarre l'application avec la configuration de main.ts, sur un port libre. */
 export async function createTestApp(): Promise<TestApp> {
   const moduleRef = await Test.createTestingModule({
     imports: [AppModule],
@@ -52,8 +52,8 @@ export async function createTestApp(): Promise<TestApp> {
   const app = moduleRef.createNestApplication<NestExpressApplication>({
     logger: ['error'],
   });
-  app.setGlobalPrefix('api');
-  app.use(cookieParser());
+  configureApp(app);
+  setupSwagger(app);
   await app.listen(0, '127.0.0.1');
 
   const { port } = app.getHttpServer().address() as AddressInfo;
