@@ -182,19 +182,62 @@ describe('ConversationsService', () => {
   });
 
   describe('startConversation', () => {
-    it('renvoie la conversation ouverte existante sans en créer une nouvelle', async () => {
-      const existing = conversation({ guestId: 'guest-a' });
-      repository.findOpenByOwner.mockResolvedValue(existing);
+    describe('quand une conversation est déjà ouverte', () => {
+      it('la renvoie si elle vise la même agence, sans en créer une nouvelle', async () => {
+        const existing = conversation({ guestId: 'guest-a' });
+        repository.findOpenByOwner.mockResolvedValue(existing);
 
-      await expect(
-        service.startConversation(guest, {
-          origin: ConversationOrigin.GENERAL,
-        }),
-      ).resolves.toBe(existing);
-      expect(repository.findOpenByOwner).toHaveBeenCalledWith({
-        guestId: 'guest-a',
+        await expect(
+          service.startConversation(guest, {
+            origin: ConversationOrigin.AGENCY,
+            agencyId: LYON_ID,
+          }),
+        ).resolves.toEqual({ conversation: existing, created: false });
+        expect(repository.findOpenByOwner).toHaveBeenCalledWith({
+          guestId: 'guest-a',
+        });
+        expect(repository.create).not.toHaveBeenCalled();
       });
-      expect(repository.create).not.toHaveBeenCalled();
+
+      it('la renvoie pour une nouvelle demande GENERAL si elle est GENERAL', async () => {
+        const existing = conversation({
+          guestId: 'guest-a',
+          origin: ConversationOrigin.GENERAL,
+          agencyId: CENTRAL.id,
+        });
+        repository.findOpenByOwner.mockResolvedValue(existing);
+
+        await expect(
+          service.startConversation(guest, {
+            origin: ConversationOrigin.GENERAL,
+          }),
+        ).resolves.toEqual({ conversation: existing, created: false });
+      });
+
+      it.each([
+        ['une autre origine', { origin: ConversationOrigin.GENERAL }],
+        [
+          'une autre agence',
+          { origin: ConversationOrigin.AGENCY, agencyId: PARIS_ID },
+        ],
+      ])(
+        'refuse une demande vers %s avec CONVERSATION_ALREADY_OPEN (409)',
+        async (_label, input) => {
+          const existing = conversation({ guestId: 'guest-a' });
+          repository.findOpenByOwner.mockResolvedValue(existing);
+
+          const error: unknown = await service
+            .startConversation(guest, input)
+            .catch((e: unknown) => e);
+
+          expect(error).toBeInstanceOf(ConflictException);
+          expect((error as ConflictException).getResponse()).toMatchObject({
+            code: 'CONVERSATION_ALREADY_OPEN',
+            conversationId: existing.id,
+          });
+          expect(repository.create).not.toHaveBeenCalled();
+        },
+      );
     });
 
     it('rattache une demande GENERAL à l’agence centrale', async () => {
@@ -205,9 +248,11 @@ describe('ConversationsService', () => {
         ...data,
       }));
 
-      await service.startConversation(customer, {
-        origin: ConversationOrigin.GENERAL,
-      });
+      await expect(
+        service.startConversation(customer, {
+          origin: ConversationOrigin.GENERAL,
+        }),
+      ).resolves.toMatchObject({ created: true });
 
       expect(repository.create).toHaveBeenCalledWith({
         customerId: 'customer-a',

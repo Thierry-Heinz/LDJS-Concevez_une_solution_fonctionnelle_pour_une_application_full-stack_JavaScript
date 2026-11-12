@@ -51,18 +51,28 @@ export class ConversationsService {
   ) {
     const owner = this.toOwner(identity);
 
+    // Une seule conversation ouverte par client ou invité
     const existing = await this.conversationsRepository.findOpenByOwner(owner);
     if (existing) {
-      return existing;
+      if (!this.isSameTarget(existing, input)) {
+        throw new ConflictException({
+          code: 'CONVERSATION_ALREADY_OPEN',
+          message:
+            'Une conversation est déjà ouverte vers un autre destinataire',
+          conversationId: existing.id,
+        });
+      }
+      return { conversation: existing, created: false };
     }
 
     const agency = await this.resolveAgency(input);
-    return this.conversationsRepository.create({
+    const conversation = await this.conversationsRepository.create({
       customerId: 'customerId' in owner ? owner.customerId : null,
       guestId: 'guestId' in owner ? owner.guestId : null,
       origin: input.origin,
       agencyId: agency.id,
     });
+    return { conversation, created: true };
   }
 
   async closeConversation(identity: Identity, conversationId: string) {
@@ -230,6 +240,20 @@ export class ConversationsService {
       case 'anonymous':
         throw new UnauthorizedException();
     }
+  }
+
+  // GENERAL vise toujours l'agence centrale ; AGENCY vise l'agence demandée
+  private isSameTarget(
+    existing: { origin: ConversationOrigin; agencyId: string },
+    input: { origin: ConversationOrigin; agencyId?: string },
+  ) {
+    if (existing.origin !== input.origin) {
+      return false;
+    }
+    return (
+      input.origin === ConversationOrigin.GENERAL ||
+      existing.agencyId === input.agencyId
+    );
   }
 
   private assertOpen(conversationStatus: ConversationStatus) {

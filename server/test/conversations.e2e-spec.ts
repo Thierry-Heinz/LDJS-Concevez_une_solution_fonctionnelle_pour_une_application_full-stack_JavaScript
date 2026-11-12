@@ -77,18 +77,33 @@ describe('Conversations (e2e)', () => {
       });
     });
 
-    it('renvoie la conversation déjà ouverte au lieu d’en créer une seconde', async () => {
+    it('renvoie la conversation déjà ouverte vers la même cible (200)', async () => {
+      const cookie = await guestCookie();
+      const body = { origin: 'AGENCY', agencyId: AGENCY_IDS.lyon };
+      const first = await start(cookie, body).expect(201);
+
+      const second = await start(cookie, body).expect(200);
+
+      expect((second.body as ConversationBody).id).toBe(
+        (first.body as ConversationBody).id,
+      );
+      expect(await t.prisma.conversation.count()).toBe(1);
+    });
+
+    it('refuse une seconde conversation vers une autre cible (409)', async () => {
       const cookie = await guestCookie();
       const first = await start(cookie, { origin: 'GENERAL' }).expect(201);
 
       const second = await start(cookie, {
         origin: 'AGENCY',
         agencyId: AGENCY_IDS.lyon,
-      }).expect(201);
+      }).expect(409);
 
-      expect((second.body as ConversationBody).id).toBe(
-        (first.body as ConversationBody).id,
-      );
+      expect(second.body).toEqual({
+        code: 'CONVERSATION_ALREADY_OPEN',
+        message: expect.any(String),
+        conversationId: (first.body as ConversationBody).id,
+      });
       expect(await t.prisma.conversation.count()).toBe(1);
     });
 

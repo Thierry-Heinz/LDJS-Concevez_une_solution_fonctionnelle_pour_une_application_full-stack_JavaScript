@@ -2,15 +2,18 @@ import {
   Body,
   Controller,
   Get,
+  HttpStatus,
   NotFoundException,
   Param,
   ParseUUIDPipe,
   Post,
   Req,
+  Res,
 } from '@nestjs/common';
 import {
   ApiBadRequestResponse,
   ApiBody,
+  ApiConflictResponse,
   ApiCookieAuth,
   ApiCreatedResponse,
   ApiForbiddenResponse,
@@ -25,7 +28,7 @@ import { ConversationsService } from './conversations.service';
 import { AuthService } from '../auth/auth.service';
 
 import { Public } from '../auth/decorators/public.decorators';
-import type { Request } from 'express';
+import type { Request, Response } from 'express';
 import { StartConversationDto } from './dto/start-conversation.dto';
 import { ConversationDto } from './dto/conversation.dto';
 import { MessageDto } from './dto/message.dto';
@@ -122,15 +125,23 @@ export class ConversationsController {
   @ApiOperation({
     summary: 'Démarrer une conversation',
     description:
-      "Ouvre une conversation avec le service client central (GENERAL) ou une agence (AGENCY). Si le client ou l'invité a déjà une conversation ouverte, celle-ci est renvoyée. Réservé aux clients et aux invités.",
+      "Ouvre une conversation avec le service client central (GENERAL) ou une agence (AGENCY). Un client ou un invité n'a qu'une conversation ouverte à la fois : si elle vise la même cible, elle est renvoyée (200) ; sinon la demande est refusée (409). Réservé aux clients et aux invités.",
   })
   @ApiBody({
     type: StartConversationDto,
     description: 'Origine de la demande et agence éventuelle',
   })
   @ApiCreatedResponse({
-    description: 'Conversation créée, ou conversation ouverte existante',
+    description: 'Conversation créée',
     type: ConversationDto.Output,
+  })
+  @ApiOkResponse({
+    description: 'Conversation déjà ouverte vers la même cible',
+    type: ConversationDto.Output,
+  })
+  @ApiConflictResponse({
+    description:
+      'Une conversation est déjà ouverte vers une autre cible : code CONVERSATION_ALREADY_OPEN et conversationId de la conversation existante',
   })
   @ApiBadRequestResponse({
     description:
@@ -144,8 +155,15 @@ export class ConversationsController {
   @ApiNotFoundResponse({
     description: "Agence introuvable ou n'étant pas une agence locale",
   })
-  async start(@Req() request: Request, @Body() dto: StartConversationDto) {
+  async start(
+    @Req() request: Request,
+    @Body() dto: StartConversationDto,
+    @Res({ passthrough: true }) res: Response,
+  ) {
     const identity = await this.authService.resolveIdentity(request.cookies);
-    return this.conversationsService.startConversation(identity, dto);
+    const { conversation, created } =
+      await this.conversationsService.startConversation(identity, dto);
+    res.status(created ? HttpStatus.CREATED : HttpStatus.OK);
+    return conversation;
   }
 }
