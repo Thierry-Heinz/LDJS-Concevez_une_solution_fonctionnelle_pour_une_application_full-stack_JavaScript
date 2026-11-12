@@ -12,6 +12,7 @@ import type {
   SessionUser,
   UserProfile,
 } from '@/types/api';
+import { reconnectSocket } from '../socket';
 
 // ─── Requêtes ────────────────────────────────────────────────────
 
@@ -36,7 +37,8 @@ export function useLogin() {
       await queryClient.invalidateQueries({ queryKey: meQuery.queryKey });
       // Les conversations de l'invité ne concernent plus cet utilisateur → on les retire
       queryClient.removeQueries({ queryKey: conversationsKey });
-      // TODO étape 7 : reconnectSocket()
+
+      reconnectSocket();
     },
   });
 }

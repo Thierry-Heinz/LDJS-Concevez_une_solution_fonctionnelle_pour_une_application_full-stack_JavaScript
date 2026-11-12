@@ -7,6 +7,7 @@ import { api, ApiError } from '@/lib/api';
 import { nullOn } from '@/lib/queries/utils';
 import type { Conversation } from '@/types/api';
 import type { ChatMessage } from '@/types/chat-events';
+import { reconnectSocket } from '../socket';
 
 /** Clé racine : retirer ou invalider tout ce qui concerne les conversations d'un coup. */
 export const conversationsKey = ['conversations'] as const;
@@ -60,7 +61,7 @@ export function useStartConversation() {
     onSuccess: (conversation) => {
       // La réponse EST la conversation en cours : on l'écrit directement, sans refaire de GET
       queryClient.setQueryData(currentConversationQuery.queryKey, conversation);
-      // TODO étape 7 : reconnectSocket() (le cookie invité vient peut-être d'être créé)
+      reconnectSocket();
     },
 
     onError: (error) => {
