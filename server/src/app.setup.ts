@@ -5,8 +5,11 @@ import cookieParser from 'cookie-parser';
 import { cleanupOpenApiDoc } from 'nestjs-zod';
 import { ChatIoAdapter } from './chat/chat-io.adapter';
 
-// Partagé entre main.ts et les tests e2e, pour que les tests exercent
-// la même configuration que l'application réelle.
+/**
+ * Configuration commune à `main.ts` et aux tests e2e : préfixe `/api`,
+ * lecture des cookies, en-tête `x-powered-by` masqué, CORS HTTP et WebSocket
+ * limités à `CLIENT_ORIGIN`.
+ */
 export function configureApp(app: NestExpressApplication) {
   app.setGlobalPrefix('api');
   app.use(cookieParser());
@@ -20,6 +23,10 @@ export function configureApp(app: NestExpressApplication) {
   app.useWebSocketAdapter(new ChatIoAdapter(app, clientOrigin));
 }
 
+/**
+ * Génère la documentation OpenAPI et la sert sur `/api/docs` (interface)
+ * et `/api/docs-json` (document brut).
+ */
 export function setupSwagger(app: NestExpressApplication) {
   const config = new DocumentBuilder()
     .setTitle('Your Car Your Way — API PoC')

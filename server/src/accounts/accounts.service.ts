@@ -18,6 +18,10 @@ export class AccountsService {
     return this.accountsRepository.findById(id);
   }
 
+  /**
+   * @returns le profil affichable de l'utilisateur (prénom et nom à `null`
+   * pour un agent), ou `null` si le compte n'existe pas.
+   */
   async getProfile(id: string) {
     const profile = await this.accountsRepository.findProfileById(id);
     if (!profile) {

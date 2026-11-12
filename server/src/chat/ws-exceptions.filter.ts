@@ -15,6 +15,12 @@ const CODE_BY_STATUS: Record<number, string> = {
 // l'ack, quand le client en a fourni un, est le troisième argument.
 const ACK_ARG_INDEX = 2;
 
+/**
+ * Transforme toute exception levée dans le gateway en erreur
+ * `{ code, message, details }`. Elle répond à l'ack de l'événement s'il y en a
+ * un, sinon elle émet `chat:error`. Les erreurs inattendues sont journalisées et
+ * masquées (`INTERNAL_ERROR`).
+ */
 @Catch()
 export class WsExceptionsFilter extends BaseWsExceptionFilter {
   private readonly logger = new Logger('ChatGateway');
@@ -35,6 +41,10 @@ export class WsExceptionsFilter extends BaseWsExceptionFilter {
     });
   }
 
+  /**
+   * Choisit le code : celui porté par l'exception, sinon celui déduit du
+   * statut HTTP (`CODE_BY_STATUS`).
+   */
   private toChatError(exception: unknown): ChatError {
     if (exception instanceof HttpException) {
       const status = exception.getStatus();

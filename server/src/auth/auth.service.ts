@@ -57,6 +57,12 @@ export class AuthService implements OnModuleInit {
     this.dummyHash = await argon2.hash('dummy-password-for-timing');
   }
 
+  /**
+   * Crée un compte client. L'e-mail est normalisé (espaces retirés, minuscules)
+   * et le mot de passe haché avec argon2.
+   *
+   * @throws ConflictException `EMAIL_ALREADY_USED` si l'e-mail a déjà un compte.
+   */
   async register(dto: RegisterDto) {
     const email = dto.email.trim().toLowerCase();
     const passwordHash = await argon2.hash(dto.password);
@@ -86,6 +92,14 @@ export class AuthService implements OnModuleInit {
     }
   }
 
+  /**
+   * Vérifie les identifiants et ouvre une nouvelle session : une nouvelle
+   * famille de jetons, avec une limite de durée absolue.
+   *
+   * @returns l'utilisateur et ses jetons, que le contrôleur dépose en cookies.
+   * @throws UnauthorizedException si l'e-mail ou le mot de passe est faux
+   * (même erreur dans les deux cas).
+   */
   async login(dto: LoginDto) {
     const user = await this.validateCredentials(dto.email, dto.password);
     if (!user) {
@@ -99,6 +113,11 @@ export class AuthService implements OnModuleInit {
     return { user, ...tokens };
   }
 
+  /**
+   * Révoque tous les jetons de rafraîchissement de la session. Accepte un
+   * jeton d'accès expiré (la signature reste vérifiée), car on doit pouvoir se
+   * déconnecter après 15 min. Ne fait rien, sans erreur, si le jeton est invalide.
+   */
   async logout(accessToken: string) {
     let payload: AccessTokenPayload;
     try {
@@ -118,6 +137,15 @@ export class AuthService implements OnModuleInit {
     await this.refreshTokensRepository.revokeFamily(payload.sid);
   }
 
+  /**
+   * Échange un jeton de rafraîchissement contre une nouvelle paire de jetons
+   * (rotation). Le jeton présenté est révoqué ; la session garde sa famille et sa
+   * limite absolue. Si un jeton déjà utilisé est présenté (signe de vol), toute la
+   * famille est révoquée.
+   *
+   * @throws UnauthorizedException si le jeton est invalide, inconnu ou réutilisé,
+   * si la session a expiré ou si le compte n'existe plus.
+   */
   async refresh(refreshToken: string) {
     const payload = await this.verifyRefreshToken(refreshToken);
 
@@ -160,6 +188,10 @@ export class AuthService implements OnModuleInit {
     return { user, ...tokens };
   }
 
+  /**
+   * Crée un jeton invité signé, porteur d'un identifiant aléatoire.
+   * Il permet d'utiliser le chat sans compte.
+   */
   async issueGuestToken() {
     const now = Date.now();
 
@@ -179,6 +211,10 @@ export class AuthService implements OnModuleInit {
     return { guestToken, guestTokenExpiresAt };
   }
 
+  /**
+   * @returns l'identifiant invité porté par le jeton, ou `null` si le jeton
+   * est invalide ou expiré.
+   */
   async verifyGuestToken(token: string): Promise<string | null> {
     try {
       const payload = await this.jwtService.verifyAsync<{ sub: string }>(
@@ -193,6 +229,14 @@ export class AuthService implements OnModuleInit {
     }
   }
 
+  /**
+   * Déduit l'identité de l'appelant depuis ses cookies : utilisateur
+   * (`access_token`), invité (`guest_token`) ou anonyme (aucun des deux).
+   * Le jeton d'accès est prioritaire.
+   *
+   * @throws UnauthorizedException si le cookie présent est invalide ; on ne
+   * retombe pas sur l'autre cookie.
+   */
   async resolveIdentity(cookies: Record<string, unknown>): Promise<Identity> {
     const accessToken = cookies?.access_token;
     if (typeof accessToken === 'string') {
@@ -245,6 +289,11 @@ export class AuthService implements OnModuleInit {
     await this.refreshTokensRepository.revokeFamily(familyId);
   }
 
+  /**
+   * @returns l'utilisateur si l'e-mail et le mot de passe sont bons, sinon
+   * `null`. Pour un e-mail inconnu, un hash factice est quand même vérifié : la
+   * réponse prend le même temps, ce qui empêche de deviner les e-mails inscrits.
+   */
   private async validateCredentials(email: string, password: string) {
     const normalizedEmail = email.trim().toLowerCase();
     const user = await this.accountsService.findByEmail(normalizedEmail);
@@ -263,6 +312,11 @@ export class AuthService implements OnModuleInit {
     return user;
   }
 
+  /**
+   * Signe un jeton d'accès et un jeton de rafraîchissement, et enregistre le
+   * hash du second en base. Le jeton de rafraîchissement expire au plus tôt entre
+   * la fin d'inactivité et la limite absolue de la session.
+   */
   private async issueTokens(
     user: { id: string; role: Role; agencyId: string | null },
     session: { familyId: string; sessionExpiresAt: Date },
