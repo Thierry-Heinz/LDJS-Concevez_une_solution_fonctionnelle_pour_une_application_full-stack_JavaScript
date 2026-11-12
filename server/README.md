@@ -44,18 +44,39 @@ $ npm run start:dev
 $ npm run start:prod
 ```
 
-## Run tests
+## Tests
 
 ```bash
-# unit tests
-$ npm run test
+# tests unitaires (dépendances mockées, sans base de données)
+$ npm test
 
-# e2e tests
-$ npm run test:e2e
-
-# test coverage
+# couverture des tests unitaires (rapport dans coverage/)
 $ npm run test:cov
+
+# tests d'intégration HTTP + WebSocket (base PostgreSQL de test)
+$ npm run test:e2e
 ```
+
+### Tests d'intégration
+
+Prérequis : le conteneur PostgreSQL du `docker-compose.yml` est démarré
+(`docker compose up -d` à la racine) et `server/.env` contient `DATABASE_URL`.
+
+- Les tests utilisent une base **`ycyw_test`**, sur le même serveur que la base de
+  développement : son URL est dérivée de `DATABASE_URL` en remplaçant le nom de la base.
+  Pour viser un autre serveur, définir `TEST_DATABASE_URL` (son nom de base doit se
+  terminer par `_test`).
+- Avant la suite, `test/setup/global-setup.ts` lance `prisma migrate deploy` (qui crée la
+  base si besoin) puis `prisma db seed`. Entre chaque test, les données créées
+  (clients, jetons, conversations, messages) sont supprimées ; agences et agents du seed
+  sont conservés.
+- Garde-fou : l'exécution s'arrête si la base visée ne se termine pas par `_test` ou est
+  celle de développement. Les secrets JWT de test sont fixés dans `test/setup/test-env.ts`.
+- L'application est démarrée sur un port libre (préfixe `/api`, cookie-parser, comme
+  `main.ts`) ; HTTP avec supertest, WebSocket avec socket.io-client.
+
+Jest est lancé avec `--experimental-vm-modules`, nécessaire pour charger les
+dépendances publiées uniquement en ESM (`@nestjs/config`, `@nestjs/jwt`, `cookie`).
 
 ## Deployment
 
