@@ -1,4 +1,4 @@
-import { UnauthorizedException } from '@nestjs/common';
+import { ConflictException, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import type { ConfigService } from '@nestjs/config';
 import * as argon2 from 'argon2';
@@ -11,6 +11,7 @@ import type {
   RefreshTokenPayload,
 } from './auth.types';
 import { Role } from '../generated/prisma/enums';
+import { Prisma } from '../generated/prisma/client';
 
 const CONFIG: Record<string, string> = {
   JWT_ACCESS_SECRET: 'secret-acces-de-test',
@@ -112,6 +113,42 @@ describe('AuthService', () => {
       await expect(argon2.verify(data.passwordHash, PASSWORD)).resolves.toBe(
         true,
       );
+    });
+  });
+
+  describe('register avec un e-mail existant', () => {
+    const dto = {
+      email: USER.email,
+      password: PASSWORD,
+      firstName: 'Jean',
+      lastName: 'Dupont',
+      birthDate: new Date('1990-05-12'),
+      address: '12 rue de la République, 69002 Lyon',
+    };
+
+    it('répond 409 EMAIL_ALREADY_USED quand la contrainte d’unicité est violée', async () => {
+      accounts.createCustomer.mockRejectedValue(
+        new Prisma.PrismaClientKnownRequestError('Unique constraint failed', {
+          code: 'P2002',
+          clientVersion: 'test',
+        }),
+      );
+
+      const error: unknown = await service
+        .register(dto)
+        .catch((e: unknown) => e);
+
+      expect(error).toBeInstanceOf(ConflictException);
+      expect((error as ConflictException).getResponse()).toMatchObject({
+        code: 'EMAIL_ALREADY_USED',
+      });
+    });
+
+    it('relance telle quelle une autre erreur de la base', async () => {
+      const failure = new Error('connexion perdue');
+      accounts.createCustomer.mockRejectedValue(failure);
+
+      await expect(service.register(dto)).rejects.toBe(failure);
     });
   });
 

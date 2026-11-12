@@ -64,6 +64,26 @@ describe('Authentification (e2e)', () => {
       );
     });
 
+    it('refuse un e-mail déjà inscrit, même avec une autre casse (409)', async () => {
+      await request(t.server)
+        .post('/api/auth/register')
+        .send(CUSTOMER)
+        .expect(201);
+
+      const response = await request(t.server)
+        .post('/api/auth/register')
+        .send({ ...CUSTOMER, email: 'Jean.Dupont@Example.com' })
+        .expect(409);
+
+      expect(response.body).toEqual({
+        code: 'EMAIL_ALREADY_USED',
+        message: 'Adresse e-mail déjà utilisée',
+      });
+      await expect(
+        t.prisma.user.count({ where: { email: CUSTOMER.email } }),
+      ).resolves.toBe(1);
+    });
+
     it('refuse une inscription invalide (400)', async () => {
       const response = await request(t.server)
         .post('/api/auth/register')

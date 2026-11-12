@@ -11,6 +11,7 @@ import {
 import {
   ApiBadRequestResponse,
   ApiBody,
+  ApiConflictResponse,
   ApiCookieAuth,
   ApiCreatedResponse,
   ApiNoContentResponse,
@@ -102,6 +103,9 @@ export class AuthController {
   @ApiBody({ type: RegisterDto, description: 'Informations du nouveau client' })
   @ApiCreatedResponse({ description: 'Compte client créé' })
   @ApiBadRequestResponse({ description: "Données d'inscription invalides" })
+  @ApiConflictResponse({
+    description: 'Adresse e-mail déjà utilisée : code EMAIL_ALREADY_USED',
+  })
   register(@Body() dto: RegisterDto) {
     return this.authService.register(dto);
   }

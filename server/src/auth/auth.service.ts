@@ -1,4 +1,5 @@
 import {
+  ConflictException,
   Injectable,
   OnModuleInit,
   UnauthorizedException,
@@ -11,6 +12,7 @@ import { RefreshTokensRepository } from './refresh-tokens.repository';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { Role } from '../generated/prisma/enums';
+import { Prisma } from '../generated/prisma/client';
 import {
   AccessTokenPayload,
   Identity,
@@ -58,14 +60,30 @@ export class AuthService implements OnModuleInit {
   async register(dto: RegisterDto) {
     const email = dto.email.trim().toLowerCase();
     const passwordHash = await argon2.hash(dto.password);
-    return this.accountsService.createCustomer({
-      email,
-      passwordHash,
-      firstName: dto.firstName,
-      lastName: dto.lastName,
-      birthDate: dto.birthDate,
-      address: dto.address,
-    });
+    try {
+      await this.accountsService.createCustomer({
+        email,
+        passwordHash,
+        firstName: dto.firstName,
+        lastName: dto.lastName,
+        birthDate: dto.birthDate,
+        address: dto.address,
+      });
+    } catch (error) {
+      // P2002 : contrainte d'unicité violée, ici sur users.email. On s'appuie sur
+      // la base plutôt que sur une lecture préalable, qui laisserait passer deux
+      // inscriptions simultanées.
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      ) {
+        throw new ConflictException({
+          code: 'EMAIL_ALREADY_USED',
+          message: 'Adresse e-mail déjà utilisée',
+        });
+      }
+      throw error;
+    }
   }
 
   async login(dto: LoginDto) {
