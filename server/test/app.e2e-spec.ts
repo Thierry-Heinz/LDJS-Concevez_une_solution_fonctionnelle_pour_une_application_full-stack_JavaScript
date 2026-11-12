@@ -44,6 +44,10 @@ describe('Application (e2e)', () => {
   });
 
   describe('configuration HTTP', () => {
+    it('répond sur GET /api sans authentification', async () => {
+      await request(t.server).get('/api').expect(200, 'Hello World!');
+    });
+
     it('ne révèle pas le framework dans l’en-tête x-powered-by', async () => {
       const response = await request(t.server).get('/api/agencies').expect(200);
 
