@@ -10,8 +10,11 @@ function Home() {
   })
   if (error) return <p className="text-red-600">Erreur : {String(error)}</p>
   return (
+    <>
     <ul className="list-disc pl-6">
       {data?.map((a) => <li key={a.id}>{a.name}</li>)}
     </ul>
+    <p className="bg-chat-me text-chat-me-foreground rounded-lg p-3">Bulle de test</p>
+    </>
   )
 }
