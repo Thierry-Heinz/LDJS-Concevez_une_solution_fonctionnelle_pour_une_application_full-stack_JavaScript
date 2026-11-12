@@ -26,29 +26,33 @@ export type ChatError = {
   code: string;
   message: string;
   details?: unknown;
+  event?: string; // événement fautif, renseigné seulement dans chat:error
 };
 
 // ─── Réponses des acks ───────────────────────────────────────────
 
+// En cas d'échec, l'ack reçoit ErrorAck. Si le client n'a pas fourni d'ack,
+// l'erreur arrive à la place dans l'événement chat:error.
 export type OkAck = { status: 'ok' };
 export type MessageSentAck = { status: 'ok'; id: string };
+export type ErrorAck = { status: 'error'; error: ChatError };
 
 // ─── Client → serveur ────────────────────────────────────────────
 
 export interface ClientToServerEvents {
   'conversation:join': (
     payload: { conversationId: string },
-    ack: (res: OkAck) => void,
+    ack: (res: OkAck | ErrorAck) => void,
   ) => void;
 
   'message:send': (
     payload: { conversationId: string; content: string },
-    ack: (res: MessageSentAck) => void,
+    ack: (res: MessageSentAck | ErrorAck) => void,
   ) => void;
 
   'conversation:close': (
     payload: { conversationId: string },
-    ack: (res: OkAck) => void,
+    ack: (res: OkAck | ErrorAck) => void,
   ) => void;
 }
 

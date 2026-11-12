@@ -17,10 +17,14 @@ import { JoinConversationDto } from './dto/join-conversation.dto';
 import { SendMessageDto } from './dto/send-message.dto';
 import { WsExceptionsFilter } from './ws-exceptions.filter';
 
+/**
+ * Événements Socket.IO du chat. Le contrat complet (payloads, acks, erreurs)
+ * est dans `chat.events.ts`. Une conversation correspond à une room
+ * `conversation:<id>`.
+ */
 @UseFilters(new WsExceptionsFilter())
-@WebSocketGateway({
-  cors: { origin: 'http://localhost:5173', credentials: true },
-})
+// CORS : configuré par ChatIoAdapter à partir de CLIENT_ORIGIN
+@WebSocketGateway()
 export class ChatGateway implements OnGatewayInit {
   @WebSocketServer() server!: ChatServer;
 
@@ -33,6 +37,10 @@ export class ChatGateway implements OnGatewayInit {
     server.use(createWsAuthMiddleware(this.authService));
   }
 
+  /**
+   * Fait entrer le socket dans la room de la conversation et prévient les
+   * participants déjà présents.
+   */
   @SubscribeMessage('conversation:join')
   async handleJoinConversation(
     @MessageBody(new ZodValidationPipe(JoinConversationDto))
@@ -60,6 +68,11 @@ export class ChatGateway implements OnGatewayInit {
     return { status: 'ok' };
   }
 
+  /**
+   * Enregistre le message et le diffuse à toute la room, auteur compris.
+   *
+   * @returns l'ack avec l'id du message.
+   */
   @SubscribeMessage('message:send')
   async handleSendMessage(
     @MessageBody(new ZodValidationPipe(SendMessageDto)) payload: SendMessageDto,
@@ -80,6 +93,9 @@ export class ChatGateway implements OnGatewayInit {
     return { status: 'ok', id: message.id };
   }
 
+  /**
+   * Ferme la conversation, prévient la room, puis en retire tous les sockets.
+   */
   @SubscribeMessage('conversation:close')
   async handleCloseConversation(
     @MessageBody(new ZodValidationPipe(JoinConversationDto))

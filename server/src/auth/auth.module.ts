@@ -6,8 +6,6 @@ import { JwtModule } from '@nestjs/jwt';
 import { RefreshTokensRepository } from './refresh-tokens.repository';
 import { APP_GUARD } from '@nestjs/core';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
-import { AccountsService } from '../accounts/accounts.service';
-import { AccountsRepository } from '../accounts/accounts.repository';
 
 @Module({
   imports: [AccountsModule, JwtModule.register({})],
@@ -15,8 +13,6 @@ import { AccountsRepository } from '../accounts/accounts.repository';
   providers: [
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     AuthService,
-    AccountsService,
-    AccountsRepository,
     RefreshTokensRepository,
   ],
   exports: [AuthService],

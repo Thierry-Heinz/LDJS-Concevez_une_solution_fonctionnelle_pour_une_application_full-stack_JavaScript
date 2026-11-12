@@ -25,6 +25,9 @@ export class RefreshTokensRepository {
     });
   }
 
+  /**
+   * Révoque tous les jetons encore actifs d'une session (famille).
+   */
   async revokeFamily(familyId: string) {
     if (!familyId) {
       throw new Error('revokeFamily appelé sans familyId');
@@ -40,6 +43,12 @@ export class RefreshTokensRepository {
     });
   }
 
+  /**
+   * Révoque un jeton seulement s'il est encore actif, en une seule requête.
+   *
+   * @returns `count: 0` si le jeton avait déjà été révoqué : c'est ce qui détecte
+   * une réutilisation, même si deux requêtes arrivent en même temps.
+   */
   revokeIfActive(id: string) {
     return this.prisma.refreshToken.updateMany({
       where: { id, revokedAt: null },

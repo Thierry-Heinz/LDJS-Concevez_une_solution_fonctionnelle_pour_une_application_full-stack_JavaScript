@@ -10,6 +10,11 @@ import { JwtService } from '@nestjs/jwt';
 import { AccessTokenPayload, AuthenticatedRequest } from '../auth.types';
 import { ConfigService } from '@nestjs/config';
 
+/**
+ * Garde globale : toute route HTTP exige un cookie `access_token` valide,
+ * sauf si elle est marquée `@Public()`. Ne s'applique pas au WebSocket,
+ * authentifié au handshake par `createWsAuthMiddleware`.
+ */
 @Injectable()
 export class JwtAuthGuard implements CanActivate {
   private readonly accessSecret: string;
@@ -22,6 +27,12 @@ export class JwtAuthGuard implements CanActivate {
     this.accessSecret = config.getOrThrow<string>('JWT_ACCESS_SECRET');
   }
 
+  /**
+   * Laisse passer les routes `@Public()`, sinon vérifie le jeton d'accès et
+   * place l'utilisateur dans `request.user`.
+   *
+   * @throws UnauthorizedException si le cookie est absent, invalide ou expiré.
+   */
   async canActivate(context: ExecutionContext): Promise<boolean> {
     if (context.getType() !== 'http') {
       return true;
