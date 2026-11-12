@@ -40,4 +40,12 @@ export default tseslint.config(
       ],
     },
   },
+  {
+    // Les matchers asymétriques de Jest (expect.any, expect.objectContaining…)
+    // sont typés `any` : on les autorise dans les objets attendus des tests.
+    files: ['**/*.spec.ts', 'test/**/*.ts'],
+    rules: {
+      '@typescript-eslint/no-unsafe-assignment': 'off',
+    },
+  },
 );
