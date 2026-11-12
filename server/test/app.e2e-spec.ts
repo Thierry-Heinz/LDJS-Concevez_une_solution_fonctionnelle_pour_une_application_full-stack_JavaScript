@@ -65,4 +65,42 @@ describe('Application (e2e)', () => {
       );
     });
   });
+
+  describe('CORS', () => {
+    const CLIENT_ORIGIN = 'http://client.test'; // voir test/setup/test-env.ts
+
+    it('autorise l’origine du front, cookies compris, sur l’API HTTP', async () => {
+      const response = await request(t.server)
+        .get('/api/agencies')
+        .set('Origin', CLIENT_ORIGIN)
+        .expect(200);
+
+      expect(response.headers['access-control-allow-origin']).toBe(
+        CLIENT_ORIGIN,
+      );
+      expect(response.headers['access-control-allow-credentials']).toBe('true');
+    });
+
+    it('n’autorise pas une autre origine', async () => {
+      const response = await request(t.server)
+        .get('/api/agencies')
+        .set('Origin', 'http://malveillant.test');
+
+      expect(response.headers['access-control-allow-origin']).not.toBe(
+        'http://malveillant.test',
+      );
+    });
+
+    it('autorise l’origine du front sur le handshake Socket.IO', async () => {
+      const response = await request(t.server)
+        .get('/socket.io/?EIO=4&transport=polling')
+        .set('Origin', CLIENT_ORIGIN)
+        .expect(200);
+
+      expect(response.headers['access-control-allow-origin']).toBe(
+        CLIENT_ORIGIN,
+      );
+      expect(response.headers['access-control-allow-credentials']).toBe('true');
+    });
+  });
 });

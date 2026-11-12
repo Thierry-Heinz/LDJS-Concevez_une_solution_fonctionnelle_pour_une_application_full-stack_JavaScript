@@ -1,7 +1,9 @@
+import { ConfigService } from '@nestjs/config';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import cookieParser from 'cookie-parser';
 import { cleanupOpenApiDoc } from 'nestjs-zod';
+import { ChatIoAdapter } from './chat/chat-io.adapter';
 
 // Partagé entre main.ts et les tests e2e, pour que les tests exercent
 // la même configuration que l'application réelle.
@@ -9,6 +11,13 @@ export function configureApp(app: NestExpressApplication) {
   app.setGlobalPrefix('api');
   app.use(cookieParser());
   app.getHttpAdapter().getInstance().disable('x-powered-by');
+
+  // Même origine pour l'API HTTP et le WebSocket : celle du front
+  const clientOrigin = app
+    .get(ConfigService)
+    .getOrThrow<string>('CLIENT_ORIGIN');
+  app.enableCors({ origin: clientOrigin, credentials: true });
+  app.useWebSocketAdapter(new ChatIoAdapter(app, clientOrigin));
 }
 
 export function setupSwagger(app: NestExpressApplication) {

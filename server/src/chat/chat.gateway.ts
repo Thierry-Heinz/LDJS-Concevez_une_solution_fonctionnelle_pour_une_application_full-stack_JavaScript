@@ -18,9 +18,8 @@ import { SendMessageDto } from './dto/send-message.dto';
 import { WsExceptionsFilter } from './ws-exceptions.filter';
 
 @UseFilters(new WsExceptionsFilter())
-@WebSocketGateway({
-  cors: { origin: 'http://localhost:5173', credentials: true },
-})
+// CORS : configuré par ChatIoAdapter à partir de CLIENT_ORIGIN
+@WebSocketGateway()
 export class ChatGateway implements OnGatewayInit {
   @WebSocketServer() server!: ChatServer;
 

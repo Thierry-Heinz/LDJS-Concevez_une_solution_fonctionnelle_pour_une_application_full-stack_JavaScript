@@ -39,6 +39,9 @@ export function loadTestEnv(): Record<string, string> {
   return {
     NODE_ENV: 'test',
     DATABASE_URL: testUrl,
+    // Volontairement différente de la valeur de développement, pour vérifier
+    // que l'origine vient bien de la configuration.
+    CLIENT_ORIGIN: 'http://client.test',
     JWT_ACCESS_SECRET: 'e2e-secret-acces',
     JWT_REFRESH_SECRET: 'e2e-secret-rafraichissement',
     JWT_GUEST_SECRET: 'e2e-secret-invite',
