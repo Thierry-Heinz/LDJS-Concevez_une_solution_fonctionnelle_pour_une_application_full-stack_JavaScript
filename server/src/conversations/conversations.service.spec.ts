@@ -312,14 +312,19 @@ describe('ConversationsService', () => {
       });
     });
 
-    it('refuse un message sur une conversation fermée (409)', async () => {
+    it('refuse un message sur une conversation fermée avec CONVERSATION_CLOSED', async () => {
       repository.findById.mockResolvedValue(
         conversation({ guestId: 'guest-a', status: ConversationStatus.CLOSED }),
       );
 
-      await expect(
-        service.postMessage(guest, 'conversation-1', 'Bonjour'),
-      ).rejects.toBeInstanceOf(ConflictException);
+      const error: unknown = await service
+        .postMessage(guest, 'conversation-1', 'Bonjour')
+        .catch((e: unknown) => e);
+
+      expect(error).toBeInstanceOf(ConflictException);
+      expect((error as ConflictException).getResponse()).toMatchObject({
+        code: 'CONVERSATION_CLOSED',
+      });
       expect(repository.createMessage).not.toHaveBeenCalled();
     });
   });

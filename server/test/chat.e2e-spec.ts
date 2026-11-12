@@ -306,6 +306,23 @@ describe('Chat temps réel (e2e)', () => {
       });
     });
 
+    it('émet CONVERSATION_CLOSED pour un message sur une conversation fermée', async () => {
+      const { conversationId, guest, agent } = await joinBoth();
+      await agent.emitWithAck('conversation:close', { conversationId });
+      const error = nextEvent(guest, 'chat:error');
+
+      guest.emit(
+        'message:send',
+        { conversationId, content: 'Encore là ?' },
+        noop,
+      );
+
+      await expect(error).resolves.toMatchObject({
+        code: 'CONVERSATION_CLOSED',
+      });
+      await expect(t.prisma.message.count()).resolves.toBe(0);
+    });
+
     it('émet CONVERSATION_CLOSED pour fermer une conversation déjà fermée', async () => {
       const { conversationId, agent } = await lyonConversation();
       await agent.emitWithAck('conversation:join', { conversationId });

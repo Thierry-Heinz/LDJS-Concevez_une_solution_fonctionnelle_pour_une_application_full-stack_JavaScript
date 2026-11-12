@@ -67,12 +67,7 @@ export class ConversationsService {
 
   async closeConversation(identity: Identity, conversationId: string) {
     const conversation = await this.assertCanAccess(identity, conversationId);
-    if (conversation.status === ConversationStatus.CLOSED) {
-      throw new ConflictException({
-        code: 'CONVERSATION_CLOSED',
-        message: 'Conversation fermée',
-      });
-    }
+    this.assertOpen(conversation.status);
     return await this.conversationsRepository.close(conversationId);
   }
 
@@ -87,9 +82,7 @@ export class ConversationsService {
     content: string,
   ) {
     const conversation = await this.assertCanAccess(identity, conversationId);
-    if (conversation.status === ConversationStatus.CLOSED) {
-      throw new ConflictException();
-    }
+    this.assertOpen(conversation.status);
 
     const sender = this.resolveSender(identity);
     return this.conversationsRepository.createMessage({
