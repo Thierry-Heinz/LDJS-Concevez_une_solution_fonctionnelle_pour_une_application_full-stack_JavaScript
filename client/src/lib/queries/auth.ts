@@ -16,10 +16,17 @@ import { reconnectSocket } from '../socket';
 
 // ─── Requêtes ────────────────────────────────────────────────────
 
+function hasSessionHint() {
+  return document.cookie.split('; ').includes('has_session=1');
+}
+
 export const meQuery = queryOptions({
   queryKey: ['auth', 'me'],
-  queryFn: () => nullOn([401], api.get<UserProfile>('/auth/me')),
-  staleTime: Infinity, // ne change qu'à la connexion ou à la déconnexion, où on met le cache à jour à la main
+  queryFn: () =>
+    hasSessionHint()
+      ? nullOn([401], api.get<UserProfile>('/auth/me'))
+      : Promise.resolve(null), // visiteur : aucune requête
+  staleTime: Infinity,
   retry: false,
 });
 

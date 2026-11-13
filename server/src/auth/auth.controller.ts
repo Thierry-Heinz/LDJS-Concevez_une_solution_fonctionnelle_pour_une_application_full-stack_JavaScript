@@ -210,6 +210,7 @@ export class AuthController {
       accessExpiresAt: Date;
       refreshToken: string;
       refreshExpiresAt: Date;
+      sessionExpiresAt: Date;
     },
   ) {
     const secure = process.env.NODE_ENV === 'production';
@@ -228,10 +229,19 @@ export class AuthController {
       path: '/api/auth/refresh',
       expires: tokens.refreshExpiresAt,
     });
+
+    res.cookie('has_session', '1', {
+      httpOnly: false, // ← le seul cookie lisible par le front, et c'est voulu
+      sameSite: 'lax',
+      secure,
+      path: '/',
+      expires: tokens.sessionExpiresAt, // la fin de la session absolue (3 h)
+    });
   }
 
   private clearAuthCookies(res: Response) {
     res.clearCookie('access_token');
     res.clearCookie('refresh_token', { path: '/api/auth/refresh' });
+    res.clearCookie('has_session', { path: '/' });
   }
 }

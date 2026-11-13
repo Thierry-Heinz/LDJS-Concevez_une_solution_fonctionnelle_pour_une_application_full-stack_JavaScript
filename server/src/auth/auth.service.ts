@@ -373,6 +373,12 @@ export class AuthService implements OnModuleInit {
       sessionExpiresAt: session.sessionExpiresAt,
     });
 
-    return { accessToken, accessExpiresAt, refreshToken, refreshExpiresAt };
+    return {
+      accessToken,
+      accessExpiresAt,
+      refreshToken,
+      refreshExpiresAt,
+      sessionExpiresAt: session.sessionExpiresAt,
+    };
   }
 }
