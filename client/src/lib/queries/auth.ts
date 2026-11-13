@@ -14,24 +14,22 @@ import type {
 } from '@/types/api';
 import { reconnectSocket } from '../socket';
 
-// ─── Requêtes ────────────────────────────────────────────────────
-
 function hasSessionHint() {
   return document.cookie.split('; ').includes('has_session=1');
 }
 
+/** Profil de l'utilisateur connecté, ou `null` ; sans cookie indicateur `has_session`, aucune requête n'est envoyée. */
 export const meQuery = queryOptions({
   queryKey: ['auth', 'me'],
   queryFn: () =>
     hasSessionHint()
       ? nullOn([401], api.get<UserProfile>('/auth/me'))
-      : Promise.resolve(null), // visiteur : aucune requête
+      : Promise.resolve(null),
   staleTime: Infinity,
   retry: false,
 });
 
-// ─── Mutations ───────────────────────────────────────────────────
-
+/** Connexion : recharge le profil, retire du cache les conversations de l'invité et reconnecte le socket avec les nouveaux cookies. */
 export function useLogin() {
   const queryClient = useQueryClient();
 
@@ -40,9 +38,7 @@ export function useLogin() {
       api.post<SessionUser>('/auth/login', input),
 
     onSuccess: async () => {
-      // Les cookies ont changé : le profil en cache est faux → on le recharge
       await queryClient.invalidateQueries({ queryKey: meQuery.queryKey });
-      // Les conversations de l'invité ne concernent plus cet utilisateur → on les retire
       queryClient.removeQueries({ queryKey: conversationsKey });
 
       reconnectSocket();
@@ -50,6 +46,9 @@ export function useLogin() {
   });
 }
 
+/**
+ * Déconnexion : le profil passe directement à `null`, sans nouvelle requête, et les conversations sont retirées du cache.
+ */
 export function useLogout() {
   const queryClient = useQueryClient();
 
@@ -57,10 +56,10 @@ export function useLogout() {
     mutationFn: () => api.post<void>('/auth/logout'),
 
     onSuccess: () => {
-      // On connaît la nouvelle valeur : plus personne n'est connecté
       queryClient.setQueryData(meQuery.queryKey, null);
       queryClient.removeQueries({ queryKey: conversationsKey });
-      // TODO étape 7 : reconnectSocket()
+
+      reconnectSocket();
     },
   });
 }

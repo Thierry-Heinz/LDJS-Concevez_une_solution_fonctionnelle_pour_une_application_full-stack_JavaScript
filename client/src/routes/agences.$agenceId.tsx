@@ -1,23 +1,25 @@
-// Détail d'une agence. Le nom du fichier donne l'URL : /agences/$agenceId.
-// L'API ne fournit que le nom : adresse, horaires et téléphone sont du contenu fictif côté front.
-
 import { createFileRoute, Link, notFound } from '@tanstack/react-router';
 import { ArrowLeft, Clock, MapPin, Phone } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { agenciesQuery } from '@/lib/queries/agencies';
 
+/**
+ * Détail d'une agence : le nom du fichier donne l'URL `/agences/$agenceId`.
+ * Une agence inconnue lève `notFound()`, qui affiche le `notFoundComponent` de la route racine.
+ * L'API ne fournit que le nom : adresse, horaires et téléphone sont du contenu fictif.
+ */
 export const Route = createFileRoute('/agences/$agenceId')({
   loader: async ({ context, params }) => {
     const agencies = await context.queryClient.ensureQueryData(agenciesQuery);
     const agency = agencies.find((a) => a.id === params.agenceId);
-    if (!agency) throw notFound(); // affiche le notFoundComponent de la route racine
+    if (!agency) throw notFound();
     return agency;
   },
   component: AgencyPage,
 });
 
 function AgencyPage() {
-  const agency = Route.useLoaderData(); // typé : Agency
+  const agency = Route.useLoaderData();
 
   return (
     <div className="mx-auto w-full max-w-[1040px] px-4 pt-8 pb-24 md:px-10 md:py-14">
@@ -33,7 +35,6 @@ function AgencyPage() {
       </h1>
 
       <Card className="max-w-[560px] p-6 shadow-sm">
-        {/* Liste de définitions : icône décorative, libellé en texte. */}
         <dl className="grid grid-cols-[auto_1fr] gap-x-3.5 gap-y-4">
           <dt>
             <MapPin className="mt-0.5 size-5 text-primary" aria-hidden="true" />

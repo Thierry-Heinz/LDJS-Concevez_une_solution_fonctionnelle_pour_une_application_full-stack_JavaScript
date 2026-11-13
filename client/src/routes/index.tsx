@@ -1,15 +1,15 @@
-// Accueil. Exemple complet « Router + Query » : loader, squelette, useSuspenseQuery.
-
 import { useSuspenseQuery } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
 import { AgencyCard, AgencyCardSkeleton } from '@/components/agency-cards.tsx';
 import { agenciesQuery } from '@/lib/queries/agencies';
 
+/**
+ * Accueil, exemple de référence « Router + Query » : le loader lance `ensureQueryData` avant le rendu, et dès le survol d'un lien grâce à `defaultPreload`.
+ * `pendingComponent` affiche des squelettes pendant l'attente.
+ * Le cache étant rempli, `HomePage` utilise `useSuspenseQuery`, dont `data` n'est jamais `undefined`.
+ */
 export const Route = createFileRoute('/')({
-  // Le loader démarre le chargement AVANT le rendu (et au survol d'un lien, grâce à defaultPreload).
-  // ensureQueryData : renvoie le cache s'il existe, sinon lance la requête.
   loader: ({ context }) => context.queryClient.ensureQueryData(agenciesQuery),
-  // Affiché pendant que le loader attend.
   pendingComponent: () => (
     <HomeLayout>
       {[0, 1, 2].map((i) => (
@@ -28,7 +28,6 @@ export const Route = createFileRoute('/')({
 });
 
 function HomePage() {
-  // useSuspenseQuery : `data` n'est jamais undefined, le loader a déjà rempli le cache.
   const { data: agencies } = useSuspenseQuery(agenciesQuery);
   return (
     <HomeLayout>
@@ -51,7 +50,6 @@ function HomeLayout({ children }: { children: React.ReactNode }) {
         dans votre agence ou au service client.
       </p>
       <h2 className="mt-12 mb-4 text-xl font-extrabold">Nos agences</h2>
-      {/* Mobile d'abord : une colonne, puis trois à partir de md. */}
       <ul className="grid grid-cols-1 gap-3 md:grid-cols-3 md:gap-5">
         {children}
       </ul>

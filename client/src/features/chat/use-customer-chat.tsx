@@ -28,7 +28,11 @@ function chatTitle(
   return pageAgency?.name ?? 'Service client';
 }
 
-/** Le chat du client ou du visiteur. `enabled` : ne rien charger tant que le chat n'est pas ouvert (RGESN). */
+/**
+ * Chat du client ou du visiteur ; rien n'est chargé tant que `enabled` est faux (RGESN).
+ * Au premier message, la conversation est créée et la room rejointe avant l'envoi.
+ * La clôture est répercutée dans le cache par l'événement `conversation:closed`.
+ */
 export function useCustomerChat(
   enabled: boolean,
 ): ChatController & { isGuest: boolean } {
@@ -53,7 +57,6 @@ export function useCustomerChat(
     try {
       let conversationId = conversation?.id;
 
-      // Premier message : créer la conversation, puis rejoindre la room AVANT d'envoyer
       if (!conversationId) {
         const created = await startConversation.mutateAsync({
           agencyId: pageAgency?.id,
@@ -74,7 +77,7 @@ export function useCustomerChat(
   async function end() {
     if (!conversation) return;
     try {
-      await closeConversation(conversation.id); // le cache est mis à jour par l'événement conversation:closed
+      await closeConversation(conversation.id);
     } catch {
       toast.error("La conversation n'a pas pu être terminée. Réessayez.");
     }

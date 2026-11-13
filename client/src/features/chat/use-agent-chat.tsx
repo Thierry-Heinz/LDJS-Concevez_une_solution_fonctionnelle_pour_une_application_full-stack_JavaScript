@@ -8,9 +8,13 @@ import {
 import { closeConversation } from '@/lib/socket';
 import type { Conversation } from '@/types/api';
 
+/**
+ * Adapte une conversation de l'agence au `ChatController` attendu par `ChatPanel`.
+ * `useConversationMessages` rejoint la room et charge l'historique ; après une clôture, l'événement `conversation:closed` rafraîchit la liste.
+ */
 export function useAgentChat(conversation: Conversation): ChatController {
   const [draft, setDraft] = useState('');
-  const messages = useConversationMessages(conversation.id); // rejoint la room + charge l'historique
+  const messages = useConversationMessages(conversation.id);
   const sendMessage = useSendMessage();
 
   const firstName = messages.data?.find((m) => m.senderUser?.customer)
@@ -31,7 +35,7 @@ export function useAgentChat(conversation: Conversation): ChatController {
 
   async function end() {
     try {
-      await closeConversation(conversation.id); // conversation:closed rafraîchira la liste
+      await closeConversation(conversation.id);
     } catch {
       toast.error("La conversation n'a pas pu être terminée. Réessayez.");
     }

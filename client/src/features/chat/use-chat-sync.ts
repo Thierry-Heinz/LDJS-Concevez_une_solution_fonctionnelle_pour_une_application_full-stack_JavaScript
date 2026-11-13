@@ -1,5 +1,3 @@
-// ─── 1. L'état de la connexion ───────────────────────────────────
-
 import { useEffect, useSyncExternalStore } from 'react';
 import { socket } from '../../lib/socket';
 import type { ChatMessage } from '../../types/chat-events';
@@ -20,12 +18,10 @@ function subscribeToConnection(onChange: () => void) {
   };
 }
 
-/** true quand le socket est connecté. useSyncExternalStore : lire un état qui vit hors de React. */
+/** Indique si le socket est connecté, via `useSyncExternalStore` car cet état vit hors de React. */
 export function useSocketConnected() {
   return useSyncExternalStore(subscribeToConnection, () => socket.connected);
 }
-
-// ─── 2. Socket → cache (à appeler UNE fois, dans le layout racine) ─
 
 function upsert(list: ChatMessage[], message: ChatMessage): ChatMessage[] {
   const messageExists = list.some((el) => el.id === message.id);
@@ -35,6 +31,11 @@ function upsert(list: ChatMessage[], message: ChatMessage): ChatMessage[] {
   return [...list, message];
 }
 
+/**
+ * Répercute les événements Socket.IO dans le cache TanStack Query ; à appeler une seule fois, dans le layout racine.
+ * `conversation:closed` passe la conversation à `CLOSED` dans le cache sans nouvelle requête.
+ * Après une reconnexion, toutes les conversations sont invalidées pour récupérer les messages manqués.
+ */
 export function useChatCacheSync() {
   const queryClient = useQueryClient();
 
@@ -47,7 +48,6 @@ export function useChatCacheSync() {
     };
 
     const onClosed = ({ conversationId }: { conversationId: string }) => {
-      // La conversation du client passe à CLOSED dans le cache, sans refaire de requête
       queryClient.setQueryData(currentConversationQuery.queryKey, (previous) =>
         previous?.id === conversationId
           ? { ...previous, status: 'CLOSED' as const }
@@ -58,7 +58,6 @@ export function useChatCacheSync() {
       });
     };
 
-    // Après une coupure, des messages ont pu être manqués : on recharge tout ce qui concerne les conversations
     const onReconnect = () =>
       void queryClient.invalidateQueries({ queryKey: conversationsKey });
 

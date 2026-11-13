@@ -1,6 +1,3 @@
-// Le chat du client et du visiteur : bouton flottant + Popover (desktop) ou Sheet (mobile).
-// Toute la logique est dans useClientChat : ce composant ne fait que de l'affichage.
-
 import { useState, useSyncExternalStore } from 'react';
 import { Link } from '@tanstack/react-router';
 import { ChevronDown, MessageCircle, Minus, X } from 'lucide-react';
@@ -34,10 +31,14 @@ function useIsDesktop() {
   );
 }
 
+/**
+ * Chat du client et du visiteur : bouton flottant ouvrant un Popover (desktop) ou une Sheet (mobile).
+ * Rien n'est chargé avant la première ouverture (RGESN) et toute la logique réside dans `useCustomerChat`.
+ * Le popover est modal : Radix y piège le focus, et Échap le ferme en rendant le focus au bouton.
+ */
 export function ChatWidget() {
   const [open, setOpen] = useState(false);
   const isDesktop = useIsDesktop();
-  // open : rien n'est chargé tant que le chat n'a pas été ouvert (RGESN)
   const chat = useCustomerChat(open);
 
   const footerNote = chat.isGuest && (
@@ -65,7 +66,6 @@ export function ChatWidget() {
 
   if (isDesktop) {
     return (
-      // modal : Radix piège le focus dans le popover ; Échap le ferme et rend le focus au bouton
       <Popover open={open} onOpenChange={setOpen} modal>
         <PopoverTrigger asChild>{fab}</PopoverTrigger>
         <PopoverContent
@@ -114,7 +114,6 @@ export function ChatWidget() {
           chat={chat}
           viewer="client"
           footerNote={footerNote}
-          // SheetTitle nomme la boîte de dialogue : Radix avertit s'il manque
           titleNode={
             <SheetTitle className="text-base font-extrabold">
               {chat.title}

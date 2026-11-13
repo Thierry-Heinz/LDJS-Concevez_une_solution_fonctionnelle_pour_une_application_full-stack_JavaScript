@@ -1,6 +1,4 @@
-// COPIE de server/src/chat/chat.events.ts — ne pas modifier ici.
-
-// ─── Données partagées ───────────────────────────────────────────
+/** @file Copie de `server/src/chat/chat.events.ts` : ne pas modifier ici, modifier l'original puis le recopier. */
 
 export type SenderType = 'GUEST' | 'CUSTOMER' | 'AGENT';
 
@@ -16,7 +14,8 @@ export type ChatMessage = {
   senderUserId: string | null;
   senderAgencyId: string | null;
   content: string;
-  sentAt: string; // date ISO (voir la remarque plus bas)
+  /** Date ISO. */
+  sentAt: string;
   senderAgency: { name: string } | null;
   senderUser: { customer: { firstName: string } | null } | null;
 };
@@ -25,18 +24,14 @@ export type ChatError = {
   code: string;
   message: string;
   details?: unknown;
-  event?: string; // événement fautif, renseigné seulement dans chat:error
+  /** Événement fautif, renseigné uniquement dans `chat:error`. */
+  event?: string;
 };
 
-// ─── Réponses des acks ───────────────────────────────────────────
-
-// En cas d'échec, l'ack reçoit ErrorAck. Si le client n'a pas fourni d'ack,
-// l'erreur arrive à la place dans l'événement chat:error.
 export type OkAck = { status: 'ok' };
 export type MessageSentAck = { status: 'ok'; id: string };
+/** Reçu par l'ack en cas d'échec ; si le client n'a pas fourni d'ack, l'erreur arrive dans l'événement `chat:error`. */
 export type ErrorAck = { status: 'error'; error: ChatError };
-
-// ─── Client → serveur ────────────────────────────────────────────
 
 export interface ClientToServerEvents {
   'conversation:join': (
@@ -54,8 +49,6 @@ export interface ClientToServerEvents {
     ack: (res: OkAck | ErrorAck) => void,
   ) => void;
 }
-
-// ─── Serveur → client ────────────────────────────────────────────
 
 export interface ServerToClientEvents {
   'conversation:participant-joined': (payload: {
@@ -75,5 +68,5 @@ export interface ServerToClientEvents {
   'chat:error': (error: ChatError) => void;
 }
 
-// Pas de communication entre plusieurs serveurs dans le PoC
+/** Aucune communication entre serveurs dans le PoC. */
 export type InterServerEvents = Record<string, never>;

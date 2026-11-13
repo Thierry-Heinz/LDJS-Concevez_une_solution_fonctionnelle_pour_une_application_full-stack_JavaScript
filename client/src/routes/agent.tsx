@@ -1,5 +1,3 @@
-// Tableau de l'agent : la liste des conversations ouvertes de son agence, et la conversation choisie.
-
 import { useQuery } from '@tanstack/react-query';
 import { createFileRoute, redirect, useNavigate } from '@tanstack/react-router';
 import { ArrowLeft, MessageSquare } from 'lucide-react';
@@ -14,10 +12,13 @@ import { openConversationsQuery } from '@/lib/queries/conversations';
 import type { Conversation } from '@/types/api';
 import { cn } from 'cn';
 
+/**
+ * Tableau de bord de l'agent : conversations ouvertes de son agence et conversation sélectionnée (`?c=`).
+ * `beforeLoad` redirige avant tout rendu les visiteurs et les non-agents ; la vraie sécurité reste côté back.
+ */
 export const Route = createFileRoute('/agent')({
   validateSearch: z.object({ c: z.string().optional() }),
 
-  // Garde d'accès : avant tout rendu. La vraie sécurité reste côté back.
   beforeLoad: async ({ context, location }) => {
     const me = await context.queryClient.ensureQueryData(meQuery);
     if (!me)
@@ -30,11 +31,14 @@ export const Route = createFileRoute('/agent')({
   component: AgentPage,
 });
 
+/**
+ * La liste est rechargée toutes les 10 secondes pour faire apparaître les nouvelles demandes.
+ * La `key` de `AgentConversation` recrée le composant à chaque changement de conversation, ce qui réinitialise le brouillon.
+ */
 function AgentPage() {
   const { c: selectedId } = Route.useSearch();
   const navigate = useNavigate({ from: Route.fullPath });
 
-  // Rechargée toutes les 10 s : les nouvelles demandes apparaissent sans action de l'agent
   const { data: conversations = [] } = useQuery({
     ...openConversationsQuery,
     refetchInterval: 10_000,
@@ -83,7 +87,6 @@ function AgentPage() {
         )}
       >
         {selected ? (
-          // key : changer de conversation recrée le composant, donc remet le brouillon à zéro
           <AgentConversation
             key={selected.id}
             conversation={selected}

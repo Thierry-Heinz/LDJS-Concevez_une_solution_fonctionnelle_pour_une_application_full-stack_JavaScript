@@ -12,8 +12,6 @@ import { reconnectSocket } from '../socket';
 /** Clé racine : retirer ou invalider tout ce qui concerne les conversations d'un coup. */
 export const conversationsKey = ['conversations'] as const;
 
-// ─── Requêtes ────────────────────────────────────────────────────
-
 /** La conversation ouverte du client ou de l'invité, ou null s'il n'y en a pas. */
 export const currentConversationQuery = queryOptions({
   queryKey: [...conversationsKey, 'current'],
@@ -28,16 +26,14 @@ export const openConversationsQuery = queryOptions({
   queryFn: () => api.get<Conversation[]>('/conversations/open'),
 });
 
-/** L'historique d'une conversation : une entrée de cache par conversation. */
+/** Historique d'une conversation, une entrée de cache par conversation ; jamais périmé, car le socket le tient ensuite à jour. */
 export const messagesQuery = (conversationId: string) =>
   queryOptions({
     queryKey: [...conversationsKey, conversationId, 'messages'],
     queryFn: () =>
       api.get<ChatMessage[]>(`/conversations/${conversationId}/messages`),
-    staleTime: Infinity, // ensuite, c'est le socket qui tiendra le cache à jour
+    staleTime: Infinity,
   });
-
-// ─── Mutations ───────────────────────────────────────────────────
 
 interface StartConversationVariables {
   /** Fourni sur la page d'une agence : la conversation s'adresse à elle. Sinon : service client. */
@@ -46,12 +42,17 @@ interface StartConversationVariables {
   asGuest: boolean;
 }
 
+/**
+ * Démarre une conversation, après avoir obtenu un cookie invité si nécessaire (appel idempotent côté back).
+ * La réponse est écrite directement comme conversation en cours, sans nouveau GET.
+ * Un 409 signale une conversation déjà ouverte vers une autre cible : celle-ci est alors rechargée.
+ */
 export function useStartConversation() {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async ({ agencyId, asGuest }: StartConversationVariables) => {
-      if (asGuest) await api.post<void>('/auth/guest'); // idempotent côté back
+      if (asGuest) await api.post<void>('/auth/guest');
       return api.post<Conversation>(
         '/conversations',
         agencyId ? { origin: 'AGENCY', agencyId } : { origin: 'GENERAL' },
@@ -59,13 +60,11 @@ export function useStartConversation() {
     },
 
     onSuccess: (conversation) => {
-      // La réponse EST la conversation en cours : on l'écrit directement, sans refaire de GET
       queryClient.setQueryData(currentConversationQuery.queryKey, conversation);
       reconnectSocket();
     },
 
     onError: (error) => {
-      // 409 : une conversation est déjà ouverte vers une autre cible → on recharge celle qui existe
       if (error instanceof ApiError && error.status === 409) {
         void queryClient.invalidateQueries({
           queryKey: currentConversationQuery.queryKey,

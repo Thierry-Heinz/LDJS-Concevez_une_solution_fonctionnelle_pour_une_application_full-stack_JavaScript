@@ -15,7 +15,10 @@ interface ConversationItemProps {
   onSelect: () => void;
 }
 
-/** Un élément de la sidebar agent : tout vient de GET /conversations/open, sans requête supplémentaire. */
+/**
+ * Élément de la sidebar agent, construit uniquement à partir de `GET /conversations/open`, sans requête supplémentaire.
+ * La sélection est exposée par `aria-current` pour les lecteurs d'écran, et pas seulement par la couleur.
+ */
 export function ConversationItem({
   conversation,
   selected,
@@ -29,7 +32,6 @@ export function ConversationItem({
       <button
         type="button"
         onClick={onSelect}
-        // aria-current : la sélection est annoncée aux lecteurs d'écran, pas seulement montrée par la couleur
         aria-current={selected ? 'true' : undefined}
         className={cn(
           'flex w-full items-center gap-3 border-b px-4 py-3.5 text-left hover:bg-muted',

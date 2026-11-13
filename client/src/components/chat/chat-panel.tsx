@@ -1,6 +1,3 @@
-// Le contenu d'une conversation : en-tête, bandeau hors ligne, messages, saisie.
-// Utilisé tel quel dans le popover (desktop), la feuille (mobile) et la page agent.
-
 import { useId, type FormEvent, type ReactNode } from 'react';
 import { LoaderCircle, Send, WifiOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -18,6 +15,11 @@ interface ChatPanelProps {
   footerNote?: ReactNode;
 }
 
+/**
+ * Contenu d'une conversation (en-tête, bandeau hors ligne, messages, saisie), partagé par le popover desktop, la feuille mobile et la page agent.
+ * Le bandeau hors ligne n'apparaît qu'avec une conversation en cours, car le socket n'est ouvert qu'à partir de celle-ci.
+ * La saisie est un vrai `<form>` : la touche Entrée envoie le message sans code supplémentaire.
+ */
 export function ChatPanel({
   chat,
   viewer,
@@ -28,7 +30,6 @@ export function ChatPanel({
   const inputId = useId();
   const connected = useSocketConnected();
 
-  // Sans conversation, le socket n'est pas encore ouvert : ce n'est pas une panne
   const offline = chat.hasConversation && !chat.closed && !connected;
 
   function handleSubmit(event: FormEvent) {
@@ -98,7 +99,6 @@ export function ChatPanel({
         ) : (
           <>
             {footerNote}
-            {/* Un vrai <form> : la touche Entrée envoie le message, sans code supplémentaire */}
             <form onSubmit={handleSubmit} className="flex items-end gap-2">
               <div className="flex flex-1 flex-col gap-1.5">
                 <Label htmlFor={inputId} className="text-xs">
@@ -115,7 +115,6 @@ export function ChatPanel({
                   className="h-11 text-base"
                 />
               </div>
-              {/* Bouton icône : libellé accessible obligatoire, cible de 44 × 44 px */}
               <Button
                 type="submit"
                 size="icon"

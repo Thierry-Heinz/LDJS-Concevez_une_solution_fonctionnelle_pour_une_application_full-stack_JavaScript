@@ -4,6 +4,10 @@ import { LogOut } from 'lucide-react';
 import { meQuery, useLogout } from '@/lib/queries/auth';
 import { useQuery } from '@tanstack/react-query';
 
+/**
+ * En-tête du site : logo et actions de compte selon la session.
+ * Les liens utilisent `Button asChild` : le style du bouton s'applique directement au `<a>` du `Link`, sans `<button>` imbriqué.
+ */
 export function SiteHeader() {
   const { data: me } = useQuery(meQuery);
   const logout = useLogout();
@@ -16,7 +20,6 @@ export function SiteHeader() {
         aria-label="Your Car Your Way, accueil"
         className="flex min-h-11 items-center gap-2.5"
       >
-        {/* alt vide : le lien porte déjà le libellé */}
         <img src="/YCYW_logo.svg" alt="" width={60} height={36} />
         <span className="hidden text-[13px] leading-[14px] font-extrabold uppercase sm:block">
           Your Car
@@ -47,7 +50,6 @@ export function SiteHeader() {
           </>
         ) : (
           <>
-            {/* asChild : le style du bouton est appliqué au <a> du Link, sans <button> autour. */}
             <Button asChild variant="ghost" className="h-11">
               <Link to="/connexion">Connexion</Link>
             </Button>

@@ -7,9 +7,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import type { ChatMessage } from '@/types/chat-events';
 import { cn } from 'cn';
 
-// ─── Bulle et message système (internes à la liste) ─────────────
-
-// Les variantes n'utilisent que des tokens (bg-chat-me…), jamais de couleur en dur
+/** Variantes de bulle fondées uniquement sur les tokens du thème (`bg-chat-me`…), jamais sur une couleur en dur. */
 const bubbleVariants = cva(
   'rounded-[14px] px-3.5 py-2.5 text-sm leading-5 break-words',
   {
@@ -35,6 +33,7 @@ interface ChatBubbleProps extends VariantProps<typeof bubbleVariants> {
   children: string;
 }
 
+/** Bulle d'un message : l'expéditeur et l'heure sont écrits, la couleur et le côté ne sont qu'un renfort (RGAA). */
 function ChatBubble({
   side = 'other',
   sender,
@@ -48,7 +47,6 @@ function ChatBubble({
         side === 'me' ? 'items-end self-end' : 'items-start self-start',
       )}
     >
-      {/* RGAA : l'expéditeur et l'heure sont écrits ; la couleur et le côté ne sont qu'un renfort */}
       <span className="text-xs leading-4 text-muted-foreground">
         <b className="font-semibold text-foreground">{sender}</b> ·{' '}
         <time dateTime={sentAt}>{timeFormat.format(new Date(sentAt))}</time>
@@ -73,8 +71,6 @@ function senderName(message: ChatMessage, isMine: boolean) {
   return message.senderUser?.customer?.firstName ?? 'Invité';
 }
 
-// ─── La liste ────────────────────────────────────────────────────
-
 interface MessageListProps {
   messages: ChatMessage[];
   /** Qui regarde : décide de quel côté s'affichent les bulles. */
@@ -83,13 +79,17 @@ interface MessageListProps {
   closed?: boolean;
 }
 
+/**
+ * Liste des messages d'une conversation, qui défile automatiquement jusqu'au dernier message.
+ * `role="log"` et `aria-live="polite"` font annoncer chaque nouveau message aux lecteurs d'écran.
+ * `tabIndex={0}` rend la liste défilable au clavier.
+ */
 export function MessageList({
   messages,
   viewer,
   isLoading,
   closed,
 }: MessageListProps) {
-  // Défilement automatique vers le dernier message
   const endRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     endRef.current?.scrollIntoView({ block: 'end' });
@@ -99,8 +99,6 @@ export function MessageList({
 
   return (
     <ScrollArea className="min-h-0 flex-1">
-      {/* role="log" + aria-live="polite" : chaque nouveau message est annoncé aux lecteurs d'écran.
-          tabIndex={0} : la liste se fait défiler au clavier. */}
       <ul
         role="log"
         aria-live="polite"

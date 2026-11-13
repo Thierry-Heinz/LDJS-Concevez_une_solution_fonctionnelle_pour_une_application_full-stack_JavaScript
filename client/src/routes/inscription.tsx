@@ -11,7 +11,7 @@ import { TextField } from '@/components/text-field';
 import { ApiError } from '@/lib/api';
 import { useRegister } from '@/lib/queries/auth';
 
-// Mêmes règles que le RegisterDto du back : l'utilisateur est prévenu avant l'envoi
+/** Mêmes règles que le `RegisterDto` du back, afin de prévenir l'utilisateur avant l'envoi. */
 const schema = z.object({
   firstName: z.string().trim().min(1, 'Saisissez votre prénom.'),
   lastName: z.string().trim().min(1, 'Saisissez votre nom.'),
@@ -30,6 +30,7 @@ export const Route = createFileRoute('/inscription')({
   component: RegisterPage,
 });
 
+/** L'erreur `EMAIL_ALREADY_USED` s'affiche sous le champ email ; toute autre erreur apparaît dans une alerte globale. */
 function RegisterPage() {
   const navigate = useNavigate();
   const registerUser = useRegister();
@@ -54,7 +55,6 @@ function RegisterPage() {
         void navigate({ to: '/connexion' });
       },
       onError: (error) => {
-        // Erreur métier précise : on l'affiche sous le champ concerné
         if (error instanceof ApiError && error.code === 'EMAIL_ALREADY_USED') {
           form.setError(
             'email',
@@ -66,7 +66,6 @@ function RegisterPage() {
     });
   }
 
-  // Erreur globale : tout sauf l'email déjà utilisé, déjà affiché sous son champ
   const globalError =
     registerUser.isError &&
     !(

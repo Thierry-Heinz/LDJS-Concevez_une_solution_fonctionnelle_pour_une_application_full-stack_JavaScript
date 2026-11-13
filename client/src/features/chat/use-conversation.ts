@@ -6,6 +6,10 @@ import {
 } from '@/lib/queries/conversations';
 import { joinConversation, sendMessage, socket } from '@/lib/socket';
 
+/**
+ * Charge l'historique d'une conversation et rejoint sa room Socket.IO, puis à nouveau après chaque reconnexion.
+ * Si le serveur refuse l'accès (conversation fermée, droits insuffisants), la conversation en cours est rechargée.
+ */
 export function useConversationMessages(conversationId: string | undefined) {
   const queryClient = useQueryClient();
 
@@ -14,7 +18,6 @@ export function useConversationMessages(conversationId: string | undefined) {
 
     const join = () => {
       void joinConversation(conversationId).catch(() => {
-        // Join refusé (conversation fermée, accès refusé…) : on recharge la conversation en cours
         void queryClient.invalidateQueries({
           queryKey: currentConversationQuery.queryKey,
         });
@@ -34,8 +37,6 @@ export function useConversationMessages(conversationId: string | undefined) {
     enabled: Boolean(conversationId),
   });
 }
-
-// ─── 4. Envoi ────────────────────────────────────────────────────
 
 export function useSendMessage() {
   return useMutation({

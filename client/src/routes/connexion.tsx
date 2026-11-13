@@ -1,5 +1,3 @@
-// Connexion. Exemple complet de formulaire : react-hook-form + zod + composants shadcn + mutation.
-
 import { zodResolver } from '@hookform/resolvers/zod';
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
 import { CircleAlert, LoaderCircle } from 'lucide-react';
@@ -20,12 +18,16 @@ const schema = z.object({
 });
 type FormValues = z.infer<typeof schema>;
 
+/**
+ * Page de connexion, exemple de référence de formulaire : react-hook-form, zod, composants shadcn et mutation.
+ * Le paramètre `?redirect=` est validé et typé par `validateSearch`.
+ */
 export const Route = createFileRoute('/connexion')({
-  // Paramètres d'URL validés et typés : /connexion?redirect=/agent
   validateSearch: z.object({ redirect: z.string().optional() }),
   component: LoginPage,
 });
 
+/** Le bouton d'envoi utilise `aria-disabled` plutôt que `disabled` afin de conserver le focus pendant le chargement. */
 function LoginPage() {
   const { redirect } = Route.useSearch();
   const navigate = useNavigate();
@@ -61,7 +63,6 @@ function LoginPage() {
           <h1 className="text-2xl font-extrabold">Connexion</h1>
 
           {login.isError && (
-            // role="alert" (déjà posé par le composant shadcn) : l'erreur est annoncée dès qu'elle apparaît.
             <Alert
               variant="destructive"
               className="border-destructive bg-destructive/10 font-semibold text-destructive"
@@ -90,7 +91,6 @@ function LoginPage() {
             {...form.register('password')}
           />
 
-          {/* aria-disabled plutôt que disabled : le bouton garde le focus pendant le chargement. */}
           <Button
             type="submit"
             aria-disabled={login.isPending}
