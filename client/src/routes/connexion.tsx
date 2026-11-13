@@ -40,11 +40,9 @@ function LoginPage() {
   function onSubmit(values: FormValues) {
     login.mutate(values, {
       onSuccess: (user) => {
-        // Un conseiller va sur son tableau, un client revient d'où il venait.
         if (user.role === 'AGENT') void navigate({ to: '/agent' });
         else void navigate({ to: redirect ?? '/' });
       },
-      // Après une erreur, le focus revient sur le premier champ.
       onError: () => form.setFocus('email'),
     });
   }
@@ -55,7 +53,6 @@ function LoginPage() {
   return (
     <div className="flex flex-1 items-start justify-center md:bg-muted md:px-4 md:py-14">
       <Card className="w-full max-w-[440px] rounded-none border-0 p-4 pt-6 shadow-none md:rounded-xl md:border md:p-8 md:shadow-sm">
-        {/* noValidate : on remplace les bulles du navigateur par nos messages, reliés aux champs. */}
         <form
           onSubmit={form.handleSubmit(onSubmit)}
           noValidate
